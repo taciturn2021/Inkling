@@ -4,7 +4,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import BackButton from '@/components/BackButton';
-import BackButton from '@/components/BackButton';
 
 type Label = { _id: string; name: string; color: string };
 
@@ -173,14 +172,19 @@ export default function NoteEditorPage() {
 
   return (
     <div className="container mx-auto p-4">
+      {isConverting && (
+        <div className="h-1 w-full bg-gray-800 rounded mb-3 overflow-hidden">
+          <div className="h-full bg-blue-600 transition-all duration-200" style={{ width: `${progress}%` }} />
+        </div>
+      )}
       <div className="flex justify-between items-center mb-4">
         <div className="flex items-center gap-2">
           <BackButton />
           <h1 className="text-2xl font-bold">{id === 'new' ? 'New Note' : 'Edit Note'}</h1>
         </div>
         <div>
-          <button onClick={handleSave} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg mr-2">Save</button>
-          {id !== 'new' && <button onClick={handleDelete} className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg">Delete</button>}
+          <button disabled={isSaving || isConverting} onClick={handleSave} className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg mr-2">Save</button>
+          {id !== 'new' && <button disabled={isSaving || isConverting} onClick={handleDelete} className="bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg">Delete</button>}
         </div>
       </div>
 
@@ -221,9 +225,30 @@ export default function NoteEditorPage() {
         </div>
       </div>
 
-      {format === 'text' && (
-        <button onClick={handleConvertToMD} disabled={isConverting} className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg disabled:bg-gray-500">
-          {isConverting ? 'Converting...' : 'Convert to Markdown'}
+      {format === 'text' ? (
+        <div className="flex flex-col sm:flex-row gap-2">
+          <button
+            onClick={handleSave}
+            disabled={isSaving || isConverting}
+            className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg"
+          >
+            Submit text as-is
+          </button>
+          <button
+            onClick={handleConvertAndSave}
+            disabled={isConverting || isSaving}
+            className="bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg"
+          >
+            {isConverting ? 'Submitting…' : 'Submit and convert to markdown'}
+          </button>
+        </div>
+      ) : (
+        <button
+          onClick={handleSave}
+          disabled={isSaving}
+          className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg"
+        >
+          Submit
         </button>
       )}
     </div>
