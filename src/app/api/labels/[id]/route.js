@@ -13,10 +13,11 @@ export async function PUT(req, { params }) {
   }
 
   try {
+    const resolvedParams = await params;
     const { name, color } = await req.json();
 
     const label = await Label.findOneAndUpdate(
-      { _id: params.id, user: user.userId },
+      { _id: resolvedParams.id, user: user.userId },
       { name, color },
       { new: true, runValidators: true }
     );
@@ -41,7 +42,8 @@ export async function DELETE(req, { params }) {
   }
 
   try {
-    const label = await Label.findOneAndDelete({ _id: params.id, user: user.userId });
+    const resolvedParams = await params;
+    const label = await Label.findOneAndDelete({ _id: resolvedParams.id, user: user.userId });
 
     if (!label) {
       return new NextResponse('Label not found', { status: 404 });

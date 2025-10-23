@@ -13,7 +13,8 @@ export async function GET(req, { params }) {
   }
 
   try {
-    const note = await Note.findOne({ _id: params.id, user: user.userId }).populate('labels');
+    const resolvedParams = await params;
+    const note = await Note.findOne({ _id: resolvedParams.id, user: user.userId }).populate('labels');
     if (!note) {
       return new NextResponse('Note not found', { status: 404 });
     }
@@ -33,10 +34,11 @@ export async function PUT(req, { params }) {
   }
 
   try {
+    const resolvedParams = await params;
     const { title, content, format, labels } = await req.json();
 
     const note = await Note.findOneAndUpdate(
-      { _id: params.id, user: user.userId },
+      { _id: resolvedParams.id, user: user.userId },
       { title, content, format, labels },
       { new: true, runValidators: true }
     );
@@ -61,7 +63,8 @@ export async function DELETE(req, { params }) {
   }
 
   try {
-    const note = await Note.findOneAndDelete({ _id: params.id, user: user.userId });
+    const resolvedParams = await params;
+    const note = await Note.findOneAndDelete({ _id: resolvedParams.id, user: user.userId });
 
     if (!note) {
       return new NextResponse('Note not found', { status: 404 });

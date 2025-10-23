@@ -14,7 +14,7 @@ export async function POST(req) {
 
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
-    const prompt = `Convert the following text to Markdown.If its already in markdown format, return the same text. If its written rougly, structure it into headings and stuff , keep the original meaning and structure as much as possible. Text: ${text}`;
+    const prompt = `Convert the following text to Markdown. If it's already in markdown format, return the same text. If it's written roughly, structure it into headings and sections, keeping the original meaning and structure as much as possible. Text: ${text}`;
 
     const result = await model.generateContent(prompt);
     const response = await result.response;
