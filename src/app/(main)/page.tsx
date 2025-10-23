@@ -4,138 +4,110 @@ import { useState, useEffect } from 'react';
 import Header from '@/components/Header';
 import LabelFilters from '@/components/LabelFilters';
 import NoteList from '@/components/NoteList';
-
 import FloatingActionButton from '@/components/FloatingActionButton';
 import LabelManager from '@/components/LabelManager';
+import {
+  loadCachedNotes,
+  refreshNotesFromServer,
+  getLastUpdated,
+  type CachedNote,
+  loadCachedLabels,
+  refreshLabelsFromServer,
+} from '@/lib/notesStore';
 
 
 
 
 type Label = { _id: string; name: string; color: string };
-type Note = { _id: string; title?: string; content: string; labels: Label[] };
+type Note = CachedNote;
 
 export default function DashboardPage() {
-
   const [notes, setNotes] = useState<Note[]>([]);
-
   const [labels, setLabels] = useState<Label[]>([]);
-
   const [selectedLabel, setSelectedLabel] = useState<string | null>(null);
-
   const [loading, setLoading] = useState<boolean>(true);
-
   const [isLabelManagerOpen, setIsLabelManagerOpen] = useState<boolean>(false);
+  const [refreshing, setRefreshing] = useState(false);
 
-
-
-  const fetchNotesAndLabels = async () => {
-
-    setLoading(true);
-
+  const refreshNow = async (updateUi = true) => {
     try {
+      setRefreshing(true);
+      const fresh = await refreshNotesFromServer();
+      if (updateUi) setNotes(fresh);
+    } catch (e) {
+      console.error('Refresh failed', e);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
-      const [notesRes, labelsRes] = await Promise.all([
-
-        fetch(selectedLabel ? `/api/notes?labelId=${selectedLabel}` : '/api/notes'),
-
-        fetch('/api/labels'),
-
+  const bootstrapFromCache = async () => {
+    setLoading(true);
+    try {
+      const [cachedNotes, cachedLabels] = await Promise.all([
+        loadCachedNotes(),
+        loadCachedLabels(),
       ]);
 
-      const notesData = await notesRes.json();
+      setNotes(cachedNotes);
+      setLabels(cachedLabels);
 
-      const labelsData = await labelsRes.json();
+      if (!cachedNotes || cachedNotes.length === 0) {
+        const fresh = await refreshNotesFromServer();
+        setNotes(fresh);
+      } else {
+        const last = await getLastUpdated();
+        const tooOld = !last || Date.now() - last > 10 * 60 * 1000;
+        if (tooOld) refreshNow(false);
+      }
 
-      setNotes(notesData);
-
-      setLabels(labelsData);
-
+      if (!cachedLabels || cachedLabels.length === 0) {
+        const freshLabels = await refreshLabelsFromServer();
+        setLabels(freshLabels);
+      }
     } catch (error) {
-
-      console.error('Failed to fetch data', error);
-
+      console.error('Bootstrap cache failed', error);
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
-
   };
-
-
 
   useEffect(() => {
+    bootstrapFromCache();
+  }, []);
 
-    fetchNotesAndLabels();
+  const filteredNotes = selectedLabel
+    ? notes.filter((n) => n.labels.some((l) => l._id === selectedLabel))
+    : notes;
 
-  }, [selectedLabel]);
-
-
-
-  const handleLabelsUpdate = () => {
-
-    fetchNotesAndLabels();
-
+  const handleLabelsUpdate = async () => {
+    try {
+      const fresh = await refreshLabelsFromServer();
+      setLabels(fresh);
+    } catch {}
   };
 
-
-
   return (
-
     <div className="min-h-screen bg-gray-900 text-white">
+      <Header onManageLabels={() => setIsLabelManagerOpen(true)} onRefresh={() => refreshNow(true)} refreshing={refreshing} />
 
-      <Header onManageLabels={() => setIsLabelManagerOpen(true)} />
+      <LabelFilters labels={labels} selectedLabel={selectedLabel} onSelectLabel={setSelectedLabel} />
 
-      <LabelFilters
-
-        labels={labels}
-
-        selectedLabel={selectedLabel}
-
-        onSelectLabel={setSelectedLabel}
-
-      />
-
-      
-
-            {loading ? (
-
-              <div className="flex justify-center items-center h-64">
-
-                <p>Loading...</p>
-
-              </div>
-
-            ) : notes.length > 0 ? (
-
-              <NoteList notes={notes} />
-
-            ) : (
-
-              <div className="text-center py-16">
-
-                <h2 className="text-2xl font-semibold mb-4">Welcome to your notes!</h2>
-
-                <p className="text-gray-400">You don't have any notes yet. Click the '+' button to create your first note.</p>
-
-              </div>
-
-            )}
-
-      
+      {loading ? (
+        <div className="flex justify-center items-center h-64">
+          <p>Loading...</p>
+        </div>
+      ) : filteredNotes.length > 0 ? (
+        <NoteList notes={filteredNotes} />
+      ) : (
+        <div className="text-center py-16">
+          <h2 className="text-2xl font-semibold mb-4">Welcome to your notes!</h2>
+          <p className="text-gray-400">You don't have any notes yet. Click the '+' button to create your first note.</p>
+        </div>
+      )}
 
       <FloatingActionButton />
-
-      <LabelManager 
-
-        isOpen={isLabelManagerOpen} 
-
-        onClose={() => setIsLabelManagerOpen(false)} 
-
-        onLabelsUpdate={handleLabelsUpdate} 
-
-      />
-
+      <LabelManager isOpen={isLabelManagerOpen} onClose={() => setIsLabelManagerOpen(false)} onLabelsUpdate={handleLabelsUpdate} />
     </div>
-
   );
-
 }

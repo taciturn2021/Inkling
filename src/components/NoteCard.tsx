@@ -6,6 +6,7 @@ export default function NoteCard({ note }: { note: Note }) {
   return (
     <Link
       href={`/notes/${note._id}`}
+      prefetch={false}
       className="block bg-gray-800 p-4 rounded-xl shadow-md hover:shadow-lg hover:translate-y-[-2px] transition-transform"
     >
       <h3 className="font-semibold text-base mb-2 text-white">{note.title || 'Untitled Note'}</h3>
