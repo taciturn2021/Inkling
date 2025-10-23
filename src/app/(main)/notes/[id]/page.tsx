@@ -1,256 +1,98 @@
-
-'use client';
-
-import { useState, useEffect, useRef } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import dbConnect from '@/lib/db';
+import Note from '@/models/Note';
+import { verifyToken } from '@/lib/auth';
+import Link from 'next/link';
 import BackButton from '@/components/BackButton';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
+import rehypeSlug from 'rehype-slug';
+import rehypeAutolinkHeadings from 'rehype-autolink-headings';
 
 type Label = { _id: string; name: string; color: string };
 
-export default function NoteEditorPage() {
-  const [note, setNote] = useState<any>(null);
-  const [title, setTitle] = useState<string>('');
-  const [content, setContent] = useState<string>('');
-  const [format, setFormat] = useState<'text' | 'md'>('text');
-  const [labels, setLabels] = useState<Label[]>([]);
-  const [selectedLabels, setSelectedLabels] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const router = useRouter();
-  const { id } = useParams();
+async function getNote(id: string) {
+  await dbConnect();
+  const user = await verifyToken();
+  if (!user) return null;
+  const noteDoc: any = await Note.findOne({ _id: id, user: user.userId }).populate('labels').lean();
+  if (!noteDoc) return null;
+  return {
+    _id: noteDoc._id.toString(),
+    title: noteDoc.title || 'Untitled Note',
+    content: noteDoc.content as string,
+    format: (noteDoc.format as 'text' | 'md') || 'text',
+    labels: (noteDoc.labels || []).map((l: any) => ({ _id: l._id.toString(), name: l.name, color: l.color })),
+  } as { _id: string; title: string; content: string; format: 'text' | 'md'; labels: Label[] };
+}
 
-  useEffect(() => {
-    const fetchNote = async () => {
-      if (id === 'new') {
-        setLoading(false);
-        return;
-      }
-      try {
-        const res = await fetch(`/api/notes/${id}`);
-        if (res.ok) {
-          const noteData = await res.json();
-          setNote(noteData);
-          setTitle(noteData.title);
-          setContent(noteData.content);
-          setFormat(noteData.format);
-          setSelectedLabels(noteData.labels.map((l: { _id: string }) => l._id));
-        } else {
-          setError('Failed to fetch note');
-        }
-      } catch (err) {
-        setError('An unexpected error occurred.');
-      }
-      setLoading(false);
-    };
+export default async function NoteViewPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const note = await getNote(id);
 
-    const fetchLabels = async () => {
-      try {
-        const res = await fetch('/api/labels');
-        if (res.ok) {
-          const labelsData = await res.json();
-          setLabels(labelsData);
-        } else {
-          console.error('Failed to fetch labels');
-        }
-      } catch (err) {
-        console.error('An unexpected error occurred while fetching labels.');
-      }
-    };
-
-    fetchNote();
-    fetchLabels();
-  }, [id]);
-
-  const handleLabelChange = (labelId: string) => {
-    setSelectedLabels((prev: string[]) =>
-      prev.includes(labelId)
-        ? prev.filter((id: string) => id !== labelId)
-        : [...prev, labelId]
+  if (!note) {
+    return (
+      <div className="container mx-auto px-4 py-6">
+        <div className="flex items-center gap-2 mb-4">
+          <BackButton />
+          <h1 className="text-xl font-semibold">Note not found</h1>
+        </div>
+        <p className="text-gray-400">The note may have been deleted or you may not have access.</p>
+      </div>
     );
-  };
-
-  const handleSave = async () => {
-    const method = id === 'new' ? 'POST' : 'PUT';
-    const url = id === 'new' ? '/api/notes' : `/api/notes/${id}`;
-
-    try {
-      setIsSaving(true);
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, content, format, labels: selectedLabels }),
-      });
-
-      if (res.ok) {
-        router.push('/');
-      } else {
-        const data = await res.json();
-        setError(data.message || 'Failed to save note');
-      }
-    } catch (err) {
-      setError('An unexpected error occurred.');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (id === 'new') return;
-
-    try {
-      const res = await fetch(`/api/notes/${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        router.push('/');
-      } else {
-        const data = await res.json();
-        setError(data.message || 'Failed to delete note');
-      }
-    } catch (err) {
-      setError('An unexpected error occurred.');
-    }
-  };
-
-  const [isConverting, setIsConverting] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const progressTimer = useRef<NodeJS.Timeout | null>(null);
-
-    const handleConvertAndSave = async () => {
-      setIsConverting(true);
-      setError('');
-      setProgress(10);
-      if (progressTimer.current) clearInterval(progressTimer.current);
-      progressTimer.current = setInterval(() => {
-        setProgress((p) => (p < 85 ? p + 3 : p));
-      }, 300);
-
-      try {
-        const res = await fetch('/api/convert-to-md', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: content }),
-        });
-
-        if (!res.ok) {
-          setError('Failed to convert to Markdown');
-          return;
-        }
-
-        const data = await res.json();
-        setContent(data.markdown);
-        setFormat('md');
-        setProgress(90);
-
-        const method = id === 'new' ? 'POST' : 'PUT';
-        const url = id === 'new' ? '/api/notes' : `/api/notes/${id}`;
-        const saveRes = await fetch(url, {
-          method,
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title, content: data.markdown, format: 'md', labels: selectedLabels }),
-        });
-
-        if (!saveRes.ok) {
-          const d = await saveRes.json().catch(() => ({}));
-          setError(d.message || 'Failed to save converted note');
-          return;
-        }
-
-        setProgress(100);
-        router.push('/');
-      } catch (err) {
-        setError('An unexpected error occurred.');
-      } finally {
-        if (progressTimer.current) clearInterval(progressTimer.current);
-        progressTimer.current = null;
-        setIsConverting(false);
-        setTimeout(() => setProgress(0), 400);
-      }
-    };
-
-  if (loading) return <p>Loading...</p>;
-  if (error) return <p className="text-red-500">{error}</p>;
+  }
 
   return (
-    <div className="container mx-auto p-4">
-      {isConverting && (
-        <div className="h-1 w-full bg-gray-800 rounded mb-3 overflow-hidden">
-          <div className="h-full bg-blue-600 transition-all duration-200" style={{ width: `${progress}%` }} />
+    <div className="min-h-screen bg-gray-900 text-white">
+      <div className="sticky top-0 z-10 bg-gray-900/80 backdrop-blur border-b border-gray-800">
+        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <BackButton />
+            <h1 className="text-lg font-bold truncate max-w-[65vw] sm:max-w-none">{note.title}</h1>
+          </div>
+          <Link
+            href={`/notes/${note._id}/edit`}
+            className="rounded-lg bg-blue-600 text-white text-sm px-3 py-2 active:scale-[.98]"
+          >
+            Edit
+          </Link>
+        </div>
+      </div>
+
+      {note.labels.length > 0 && (
+        <div className="container mx-auto px-4 pt-3">
+          <div className="flex flex-wrap gap-1.5">
+            {note.labels.map((label) => (
+              <span
+                key={label._id}
+                style={{ backgroundColor: label.color, color: '#fff' }}
+                className="px-2.5 py-0.5 rounded-full text-[11px] font-medium"
+              >
+                {label.name}
+              </span>
+            ))}
+          </div>
         </div>
       )}
-      <div className="flex justify-between items-center mb-4">
-        <div className="flex items-center gap-2">
-          <BackButton />
-          <h1 className="text-2xl font-bold">{id === 'new' ? 'New Note' : 'Edit Note'}</h1>
-        </div>
-        <div>
-          <button disabled={isSaving || isConverting} onClick={handleSave} className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg mr-2">Save</button>
-          {id !== 'new' && <button disabled={isSaving || isConverting} onClick={handleDelete} className="bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg">Delete</button>}
-        </div>
-      </div>
 
-      <input
-        type="text"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        placeholder="Title"
-        className="w-full bg-gray-800 p-2 rounded-lg mb-4"
-      />
-
-      <textarea
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
-        placeholder="Content"
-        className="w-full bg-gray-800 p-2 rounded-lg mb-4 h-64"
-      />
-
-      <div className="flex items-center mb-4">
-        <span className="mr-2">Format:</span>
-        <button onClick={() => setFormat('text')} className={`px-3 py-1 rounded-full text-sm mr-2 ${format === 'text' ? 'bg-blue-600' : 'bg-gray-700'}`}>Text</button>
-        <button onClick={() => setFormat('md')} className={`px-3 py-1 rounded-full text-sm ${format === 'md' ? 'bg-blue-600' : 'bg-gray-700'}`}>Markdown</button>
-      </div>
-
-      <div className="mb-4">
-        <h3 className="font-bold mb-2">Labels</h3>
-        <div className="flex flex-wrap">
-          {labels.map(label => (
-            <button 
-              key={label._id} 
-              onClick={() => handleLabelChange(label._id)}
-              style={{ backgroundColor: selectedLabels.includes(label._id) ? label.color : '' }}
-              className={`px-3 py-1 rounded-full text-sm mr-2 mb-2 ${selectedLabels.includes(label._id) ? 'text-white' : 'text-gray-300'}`}
-            >
-              {label.name}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {format === 'text' ? (
-        <div className="flex flex-col sm:flex-row gap-2">
-          <button
-            onClick={handleSave}
-            disabled={isSaving || isConverting}
-            className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg"
+      <article className="container mx-auto px-4 py-5 prose prose-invert prose-sm sm:prose-base lg:prose-lg max-w-none
+        prose-headings:scroll-mt-24 prose-a:text-blue-400 prose-a:no-underline hover:prose-a:underline
+        prose-img:rounded-lg prose-pre:bg-gray-900/60 prose-code:bg-gray-800/60 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded">
+        {note.format === 'md' ? (
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            rehypePlugins={[
+              rehypeRaw,
+              rehypeSlug,
+              [rehypeAutolinkHeadings, { behavior: 'append', properties: { className: ['ml-1','text-gray-500','no-underline'] } }],
+            ]}
           >
-            Submit text as-is
-          </button>
-          <button
-            onClick={handleConvertAndSave}
-            disabled={isConverting || isSaving}
-            className="bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg"
-          >
-            {isConverting ? 'Submitting…' : 'Submit and convert to markdown'}
-          </button>
-        </div>
-      ) : (
-        <button
-          onClick={handleSave}
-          disabled={isSaving}
-          className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg"
-        >
-          Submit
-        </button>
-      )}
+            {note.content}
+          </ReactMarkdown>
+        ) : (
+          <pre className="whitespace-pre-wrap text-gray-200 leading-relaxed">{note.content}</pre>
+        )}
+      </article>
     </div>
   );
 }
