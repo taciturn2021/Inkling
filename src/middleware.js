@@ -4,7 +4,7 @@ import { jwtVerify } from 'jose';
 export const config = {
   matcher: [
     // Protect everything except auth pages and static assets
-    '/((?!api/auth|login|register|_next/static|_next/image|favicon.ico).*)',
+    '/((?!api/auth|login|register|share|_next/static|_next/image|favicon.ico).*)',
   ],
 };
 export async function middleware(req) {

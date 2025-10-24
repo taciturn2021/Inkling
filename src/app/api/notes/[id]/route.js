@@ -1,6 +1,7 @@
 
 import dbConnect from '@/lib/db';
 import Note from '@/models/Note';
+import '@/models/Label';
 import { verifyToken } from '@/lib/auth';
 import { NextResponse } from 'next/server';
 
@@ -35,11 +36,16 @@ export async function PUT(req, { params }) {
 
   try {
     const resolvedParams = await params;
-    const { title, content, format, labels } = await req.json();
+    const { title, content, format, labels, shared } = await req.json();
+
+    const update = { title, content, format, labels };
+    if (typeof shared === 'boolean') {
+      update.shared = shared;
+    }
 
     const note = await Note.findOneAndUpdate(
       { _id: resolvedParams.id, user: user.userId },
-      { title, content, format, labels },
+      update,
       { new: true, runValidators: true }
     );
 

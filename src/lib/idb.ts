@@ -8,6 +8,7 @@ export type CachedNote = {
   format: 'text' | 'md';
   labels: CachedLabel[];
   createdAt?: string;
+  shared?: boolean;
 };
 
 type DBSchema = {

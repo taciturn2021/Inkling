@@ -36,6 +36,7 @@ export async function refreshNotesFromServer(): Promise<CachedNote[]> {
     format: n.format === 'md' ? 'md' : 'text',
     labels: (n.labels || []).map((l: any) => ({ _id: String(l._id), name: l.name, color: l.color })),
     createdAt: n.createdAt ? new Date(n.createdAt).toISOString() : undefined,
+    shared: !!n.shared,
   }));
   await putNotes(normalized);
   await setMeta('lastUpdated', Date.now());

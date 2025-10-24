@@ -22,6 +22,10 @@ const NoteSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Label',
   }],
+  shared: {
+    type: Boolean,
+    default: false,
+  },
   createdAt: {
     type: Date,
     default: Date.now,

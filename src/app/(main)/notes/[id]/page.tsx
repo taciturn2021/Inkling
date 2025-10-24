@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import BackButton from '@/components/BackButton';
 import NoteViewer from '@/components/NoteViewer';
+import ShareToggle from '@/components/ShareToggle';
 
 export default async function NoteViewPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -19,6 +20,7 @@ export default async function NoteViewPage({ params }: { params: Promise<{ id: s
           >
             Edit
           </Link>
+          <ShareToggle id={id} />
         </div>
       </div>
 
