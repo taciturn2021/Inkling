@@ -2,9 +2,11 @@ import dbConnect from '@/lib/db';
 import Note from '@/models/Note';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
 import rehypeRaw from 'rehype-raw';
 import rehypeSlug from 'rehype-slug';
 import rehypeAutolinkHeadings from 'rehype-autolink-headings';
+import rehypeKatex from 'rehype-katex';
 
 async function getSharedNote(id: string) {
   await dbConnect();
@@ -62,10 +64,11 @@ export default async function SharedNotePage({ params }: { params: Promise<{ id:
         prose-img:rounded-lg prose-pre:bg-gray-900/60 prose-code:bg-gray-800/60 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded">
         {note.format === 'md' ? (
           <ReactMarkdown
-            remarkPlugins={[remarkGfm]}
+            remarkPlugins={[remarkGfm, remarkMath]}
             rehypePlugins={[
               rehypeRaw,
               rehypeSlug,
+              rehypeKatex,
               [rehypeAutolinkHeadings, { behavior: 'append', properties: { className: ['ml-1','text-gray-500','no-underline'] } }],
             ]}
           >

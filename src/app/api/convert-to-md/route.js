@@ -14,7 +14,18 @@ export async function POST(req) {
 
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
-    const prompt = `Convert the following text to Markdown. If it's already in markdown format, return the same text. If it's written roughly, structure it into headings and sections, keeping the original meaning and structure as much as possible. Text: ${text}`;
+    const prompt = `Convert the following text into clean GitHub Flavored Markdown (GFM) compatible with remark-gfm and rehype-katex.
+Rules:
+- If it's already valid Markdown, return it unchanged.
+- Output ONLY the Markdown; no explanations or code fences.
+- Preserve LaTeX math exactly: inline $...$ and block $$...$$.
+- Keep code blocks/inline code. Add language hints to fenced blocks where obvious (e.g., \`\`\`ts).
+- Use proper headings (#..######), list syntax, links, images, and tables.
+- Avoid raw HTML where a Markdown alternative exists.
+- Do not add frontmatter or any metadata.
+
+Text:
+${text}`;
 
     const result = await model.generateContent(prompt);
     const response = await result.response;

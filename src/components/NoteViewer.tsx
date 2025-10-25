@@ -4,9 +4,11 @@ import { useEffect, useState } from 'react';
 import { getCachedNote, refreshNotesFromServer } from '@/lib/notesStore';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
 import rehypeRaw from 'rehype-raw';
 import rehypeSlug from 'rehype-slug';
 import rehypeAutolinkHeadings from 'rehype-autolink-headings';
+import rehypeKatex from 'rehype-katex';
 // no conditional hooks; keep top-level stable
 import { getImageBlob, putImageBlob } from '@/lib/idb';
 
@@ -106,10 +108,11 @@ export default function NoteViewer({ id }: { id: string }) {
       prose-img:rounded-lg prose-pre:bg-gray-900/60 prose-code:bg-gray-800/60 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded">
       {note.format === 'md' ? (
         <ReactMarkdown
-          remarkPlugins={[remarkGfm]}
+          remarkPlugins={[remarkGfm, remarkMath]}
           rehypePlugins={[
             rehypeRaw,
             rehypeSlug,
+            rehypeKatex,
             [rehypeAutolinkHeadings, { behavior: 'append', properties: { className: ['ml-1','text-gray-500','no-underline'] } }],
           ]}
           components={components}
