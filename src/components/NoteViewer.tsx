@@ -7,6 +7,8 @@ import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import rehypeSlug from 'rehype-slug';
 import rehypeAutolinkHeadings from 'rehype-autolink-headings';
+// no conditional hooks; keep top-level stable
+import { getImageBlob, putImageBlob } from '@/lib/idb';
 
 export default function NoteViewer({ id }: { id: string }) {
   const [loading, setLoading] = useState(true);
@@ -58,6 +60,46 @@ export default function NoteViewer({ id }: { id: string }) {
       </div>
     );
 
+  // Replace image URLs with blob URLs if available (and warm cache when displayed)
+  const processedContent = note ? String(note.content || '') : '';
+
+  const components = {
+    img: (props: any) => {
+      const { src, alt } = props;
+      const [resolvedSrc, setResolvedSrc] = useState<string | undefined>(undefined);
+      useEffect(() => {
+        let canceled = false;
+        (async () => {
+          try {
+            const match = typeof src === 'string' ? src.match(/\/api\/images\/([a-f\d]{24})/i) : null;
+            const id = match && Array.isArray(match) ? match[1] : undefined;
+            if (!id) { setResolvedSrc(typeof src === 'string' ? src : undefined); return; }
+            const cached = await getImageBlob(id).catch(() => undefined);
+            if (cached && !canceled) {
+              const url = URL.createObjectURL(cached.blob);
+              setResolvedSrc(url);
+              return;
+            }
+            if (typeof src === 'string') {
+              // Network fallback, then cache
+              const res = await fetch(src, { cache: 'no-store' });
+              if (!res.ok) { setResolvedSrc(src); return; }
+              const blob = await res.blob();
+              try { await putImageBlob(id, blob, blob.type || 'image/*'); } catch {}
+              if (!canceled) {
+                const url = URL.createObjectURL(blob);
+                setResolvedSrc(url);
+              }
+            }
+          } catch { setResolvedSrc(typeof src === 'string' ? src : undefined); }
+        })();
+        return () => { canceled = true; };
+      }, [src]);
+      // Avoid initial network request by withholding src until resolved
+      return <img src={resolvedSrc || ''} alt={alt} loading="lazy" decoding="async" />;
+    },
+  } as any;
+
   return (
     <article className="container mx-auto px-4 py-5 prose prose-invert prose-sm sm:prose-base lg:prose-lg max-w-none
       prose-headings:scroll-mt-24 prose-a:text-blue-400 prose-a:no-underline hover:prose-a:underline
@@ -70,8 +112,9 @@ export default function NoteViewer({ id }: { id: string }) {
             rehypeSlug,
             [rehypeAutolinkHeadings, { behavior: 'append', properties: { className: ['ml-1','text-gray-500','no-underline'] } }],
           ]}
+          components={components}
         >
-          {note.content}
+          {processedContent}
         </ReactMarkdown>
       ) : (
         <pre className="whitespace-pre-wrap text-gray-200 leading-relaxed">{note.content}</pre>

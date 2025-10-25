@@ -11,7 +11,7 @@ const NoteSchema = new mongoose.Schema({
   format: {
     type: String,
     enum: ['text', 'md'],
-    default: 'text',
+    default: 'md',
   },
   user: {
     type: mongoose.Schema.Types.ObjectId,

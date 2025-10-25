@@ -15,13 +15,14 @@ type DBSchema = {
   notes: CachedNote;
   labels: CachedLabel;
   meta: { key: string; value: any };
+  images: { id: string; contentType: string; blob: Blob; updatedAt: number };
 };
 
 let dbPromise: Promise<IDBPDatabase<any>> | null = null;
 
 export function getDB() {
   if (!dbPromise) {
-    dbPromise = openDB<any>('notes-local-db', 2, {
+    dbPromise = openDB<any>('notes-local-db', 3, {
       upgrade(db) {
         if (!db.objectStoreNames.contains('notes')) {
           const s = db.createObjectStore('notes', { keyPath: '_id' });
@@ -33,6 +34,9 @@ export function getDB() {
         }
         if (!db.objectStoreNames.contains('meta')) {
           db.createObjectStore('meta', { keyPath: 'key' });
+        }
+        if (!db.objectStoreNames.contains('images')) {
+          db.createObjectStore('images', { keyPath: 'id' });
         }
       },
     });
@@ -85,4 +89,22 @@ export async function getMeta<T = any>(key: string): Promise<T | undefined> {
   const db = await getDB();
   const entry = await db.get('meta', key);
   return entry?.value as T | undefined;
+}
+
+// Image blob cache helpers
+export async function putImageBlob(id: string, blob: Blob, contentType: string) {
+  const db = await getDB();
+  await db.put('images', { id, blob, contentType, updatedAt: Date.now() });
+}
+
+export async function getImageBlob(id: string): Promise<{ blob: Blob; contentType: string } | undefined> {
+  const db = await getDB();
+  const v = await db.get('images', id);
+  if (!v) return undefined;
+  return { blob: v.blob as Blob, contentType: String(v.contentType) };
+}
+
+export async function deleteImageBlob(id: string) {
+  const db = await getDB();
+  try { await db.delete('images', id); } catch {}
 }

@@ -1,16 +1,19 @@
 "use client";
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import BackButton from '@/components/BackButton';
+import MarkdownEditor from '@/components/NoteMdEditor';
+import { refreshNotesFromServer } from '@/lib/notesStore';
 
 type Label = { _id: string; name: string; color: string };
 
 export default function NoteEditor({ noteId }: { noteId?: string }) {
-  const isNew = !noteId || noteId === 'new';
+  const [noteIdState, setNoteIdState] = useState<string | undefined>(noteId);
+  const isNew = !noteIdState || noteIdState === 'new';
   const [title, setTitle] = useState<string>('');
   const [content, setContent] = useState<string>('');
-  const [format, setFormat] = useState<'text' | 'md'>('text');
+  const [format, setFormat] = useState<'text' | 'md'>('md');
   const [labels, setLabels] = useState<Label[]>([]);
   const [selectedLabels, setSelectedLabels] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -28,12 +31,12 @@ export default function NoteEditor({ noteId }: { noteId?: string }) {
         return;
       }
       try {
-        const res = await fetch(`/api/notes/${noteId}`);
+        const res = await fetch(`/api/notes/${noteIdState}`);
         if (res.ok) {
           const noteData = await res.json();
           setTitle(noteData.title || '');
           setContent(noteData.content || '');
-          setFormat(noteData.format || 'text');
+          setFormat(noteData.format || 'md');
           setSelectedLabels((noteData.labels || []).map((l: { _id: string }) => l._id));
         } else {
           setError('Failed to fetch note');
@@ -60,7 +63,7 @@ export default function NoteEditor({ noteId }: { noteId?: string }) {
 
     fetchNote();
     fetchLabels();
-  }, [noteId, isNew]);
+  }, [noteIdState, isNew]);
 
   const handleLabelChange = (labelId: string) => {
     setSelectedLabels((prev) =>
@@ -70,7 +73,7 @@ export default function NoteEditor({ noteId }: { noteId?: string }) {
 
   const saveNote = async (body: any, methodOverride?: 'POST' | 'PUT') => {
     const method = methodOverride || (isNew ? 'POST' : 'PUT');
-    const url = isNew ? '/api/notes' : `/api/notes/${noteId}`;
+    const url = isNew ? '/api/notes' : `/api/notes/${noteIdState}`;
     return fetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
@@ -83,6 +86,7 @@ export default function NoteEditor({ noteId }: { noteId?: string }) {
       setIsSaving(true);
       const res = await saveNote({ title, content, format, labels: selectedLabels });
       if (res.ok) {
+        try { await refreshNotesFromServer(); } catch {}
         router.push('/');
       } else {
         const data = await res.json().catch(() => ({}));
@@ -144,6 +148,7 @@ export default function NoteEditor({ noteId }: { noteId?: string }) {
       }
 
       setProgress(100);
+      try { await refreshNotesFromServer(); } catch {}
       router.push('/');
     } catch (err) {
       setError('An unexpected error occurred.');
@@ -154,6 +159,18 @@ export default function NoteEditor({ noteId }: { noteId?: string }) {
       setTimeout(() => setProgress(0), 400);
     }
   };
+
+  const ensureNoteId = useCallback(async (): Promise<string> => {
+    if (!isNew && noteIdState) return noteIdState;
+    const res = await saveNote({ title, content, format: 'md', labels: selectedLabels }, 'POST');
+    if (!res.ok) throw new Error('Failed to create draft');
+    const created = await res.json();
+    const newId = String(created._id);
+    setNoteIdState(newId);
+    try { await refreshNotesFromServer(); } catch {}
+    // Do not navigate immediately; edits continue seamlessly. User can delete after id appears.
+    return newId;
+  }, [isNew, noteIdState, title, content, selectedLabels, format]);
 
   if (loading) return <p className="px-4 py-6">Loading...</p>;
   if (error) return <p className="px-4 py-6 text-red-500">{error}</p>;
@@ -198,26 +215,21 @@ export default function NoteEditor({ noteId }: { noteId?: string }) {
         className="w-full bg-gray-800 p-2 rounded-lg mb-4"
       />
 
-      <textarea
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
-        placeholder="Content"
-        className="w-full bg-gray-800 p-2 rounded-lg mb-4 h-64"
+      <MarkdownEditor
+        content={content}
+        setContent={setContent}
+        noteId={isNew ? undefined : noteIdState}
+        ensureNoteId={ensureNoteId}
       />
 
-      <div className="flex items-center mb-4">
-        <span className="mr-2">Format:</span>
+      <div className="flex items-center justify-between mb-4 text-sm text-gray-400">
+        <span>Markdown only. Use the button or paste an image to embed.</span>
         <button
-          onClick={() => setFormat('text')}
-          className={`px-3 py-1 rounded-full text-sm mr-2 ${format === 'text' ? 'bg-blue-600' : 'bg-gray-700'}`}
+          onClick={handleConvertAndSave}
+          disabled={isConverting || isSaving}
+          className="bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white font-semibold px-3 py-1.5 rounded"
         >
-          Text
-        </button>
-        <button
-          onClick={() => setFormat('md')}
-          className={`px-3 py-1 rounded-full text-sm ${format === 'md' ? 'bg-blue-600' : 'bg-gray-700'}`}
-        >
-          Markdown
+          {isConverting ? 'Converting…' : 'Convert & Save' }
         </button>
       </div>
 
@@ -237,32 +249,7 @@ export default function NoteEditor({ noteId }: { noteId?: string }) {
         </div>
       </div>
 
-      {format === 'text' ? (
-        <div className="flex flex-col sm:flex-row gap-2">
-          <button
-            onClick={handleSave}
-            disabled={isSaving || isConverting}
-            className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg"
-          >
-            Submit text as-is
-          </button>
-          <button
-            onClick={handleConvertAndSave}
-            disabled={isConverting || isSaving}
-            className="bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg"
-          >
-            {isConverting ? 'Submitting…' : 'Submit and convert to markdown'}
-          </button>
-        </div>
-      ) : (
-        <button
-          onClick={handleSave}
-          disabled={isSaving}
-          className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg"
-        >
-          Submit
-        </button>
-      )}
+      {/* Removed duplicate bottom Submit button to avoid confusion */}
     </div>
   );
 }
