@@ -15,6 +15,8 @@ export async function middleware(req) {
     const url = req.nextUrl.clone();
     // Avoid redirect loops
     if (url.pathname !== '/login' && url.pathname !== '/register') {
+      // Preserve intended destination so we can return after login
+      url.searchParams.set('next', req.nextUrl.pathname + (req.nextUrl.search || ''));
       url.pathname = '/login';
       return NextResponse.redirect(url);
     }

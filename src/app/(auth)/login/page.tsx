@@ -25,7 +25,8 @@ export default function LoginPage() {
       });
 
       if (res.ok) {
-        router.push('/');
+        const next = new URLSearchParams(window.location.search).get('next');
+        router.push(next || '/');
       } else {
         const data = await res.json();
         setError(data.message || 'Invalid credentials');
