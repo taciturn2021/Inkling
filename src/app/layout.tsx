@@ -9,7 +9,7 @@ import { Suspense } from "react";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Note Reading Website",
+  title: "Inkling",
   description: "A note-taking app for students",
 };
 
