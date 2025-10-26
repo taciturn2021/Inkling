@@ -115,8 +115,8 @@ export default function NoteViewer({ id }: { id: string }) {
       </th>
     ),
     td: ({ children }: any) => (
-      <td className="px-3 py-2 align-top whitespace-normal break-words">
-        {children}
+      <td className="px-3 py-2 align-top">
+        <div className="max-w-[80vw] sm:max-w-none break-words whitespace-normal">{children}</div>
       </td>
     ),
     pre: ({ children }: any) => (
