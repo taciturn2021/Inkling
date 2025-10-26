@@ -32,8 +32,14 @@ export default function DashboardPage() {
   const refreshNow = async (updateUi = true) => {
     try {
       setRefreshing(true);
-      const fresh = await refreshNotesFromServer();
-      if (updateUi) setNotes(fresh);
+      const [freshNotes, freshLabels] = await Promise.all([
+        refreshNotesFromServer(),
+        refreshLabelsFromServer(),
+      ]);
+      if (updateUi) {
+        setNotes(freshNotes);
+        setLabels(freshLabels);
+      }
     } catch (e) {
       console.error('Refresh failed', e);
     } finally {

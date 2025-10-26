@@ -100,6 +100,30 @@ export default function NoteViewer({ id }: { id: string }) {
       // Avoid initial network request by withholding src until resolved
       return <img src={resolvedSrc || ''} alt={alt} loading="lazy" decoding="async" />;
     },
+    table: ({ children }: any) => {
+      return (
+        <div className="-mx-4 sm:mx-0 overflow-x-auto overscroll-x-contain">
+          <table className="w-max min-w-full border-separate" role="table">
+            {children}
+          </table>
+        </div>
+      );
+    },
+    th: ({ children }: any) => (
+      <th className="px-3 py-2 text-left whitespace-nowrap align-bottom">
+        {children}
+      </th>
+    ),
+    td: ({ children }: any) => (
+      <td className="px-3 py-2 align-top whitespace-normal break-words">
+        {children}
+      </td>
+    ),
+    pre: ({ children }: any) => (
+      <div className="-mx-4 sm:mx-0 overflow-x-auto">
+        <pre className="min-w-full whitespace-pre">{children}</pre>
+      </div>
+    ),
   } as any;
 
   return (

@@ -23,7 +23,7 @@ export default function LabelManager({ isOpen, onClose, onLabelsUpdate }: Props)
   }, [isOpen]);
 
   const fetchLabels = async () => {
-    const res = await fetch('/api/labels');
+    const res = await fetch('/api/labels', { cache: 'no-store' });
     const data = await res.json();
     setLabels(data);
   };
