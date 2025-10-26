@@ -1,5 +1,6 @@
 import dbConnect from '@/lib/db';
 import Note from '@/models/Note';
+import type { Metadata } from 'next';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
@@ -80,4 +81,20 @@ export default async function SharedNotePage({ params }: { params: Promise<{ id:
       </article>
     </div>
   );
+}
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  try {
+    await dbConnect();
+    const note: any = await Note.findOne({ _id: id, shared: true }).select('title').lean();
+    const title = note?.title ? String(note.title) : 'Shared Note';
+    return {
+      title,
+      openGraph: { title },
+      twitter: { title, card: 'summary' },
+    };
+  } catch {
+    return { title: 'Shared Note' };
+  }
 }

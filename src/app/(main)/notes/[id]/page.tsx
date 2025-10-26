@@ -1,7 +1,26 @@
 import Link from 'next/link';
+import type { Metadata } from 'next';
 import BackButton from '@/components/BackButton';
 import NoteViewer from '@/components/NoteViewer';
 import ShareToggle from '@/components/ShareToggle';
+import dbConnect from '@/lib/db';
+import Note from '@/models/Note';
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  try {
+    await dbConnect();
+    const note: any = await Note.findById(id).select('title').lean();
+    const title = note?.title ? String(note.title) : 'Note';
+    return {
+      title,
+      openGraph: { title },
+      twitter: { title, card: 'summary' },
+    };
+  } catch {
+    return { title: 'Note' };
+  }
+}
 
 export default async function NoteViewPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
