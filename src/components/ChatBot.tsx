@@ -22,6 +22,7 @@ export default function ChatBot({ noteId, enabled }: ChatBotProps) {
   const [bootError, setBootError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  const [minimized, setMinimized] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const containerRef = useRef<HTMLElement | null>(null);
   const sizeRef = useRef<{ w: number; h: number }>({ w: 0, h: 0 });
@@ -35,6 +36,8 @@ export default function ChatBot({ noteId, enabled }: ChatBotProps) {
         const v = JSON.parse(raw) as { x: number; y: number };
         setPos(v);
       }
+      const minRaw = localStorage.getItem('chat:minimized');
+      if (minRaw) setMinimized(minRaw === '1');
     } catch {}
   }, [enabled]);
 
@@ -44,6 +47,11 @@ export default function ChatBot({ noteId, enabled }: ChatBotProps) {
       try { localStorage.setItem('chat:pos', JSON.stringify(pos)); } catch {}
     }
   }, [pos, enabled]);
+
+  useEffect(() => {
+    if (!enabled) return;
+    try { localStorage.setItem('chat:minimized', minimized ? '1' : '0'); } catch {}
+  }, [minimized, enabled]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -171,6 +179,18 @@ export default function ChatBot({ noteId, enabled }: ChatBotProps) {
     window.addEventListener('pointerup', up);
   };
 
+  if (minimized) {
+    return (
+      <button
+        aria-label="Open AI chat"
+        className="fixed z-20 bottom-4 right-4 sm:bottom-6 sm:right-6 h-12 w-12 rounded-full bg-blue-600 text-white shadow-lg active:scale-[.98]"
+        onClick={() => setMinimized(false)}
+      >
+        AI
+      </button>
+    );
+  }
+
   return (
     <section
       ref={containerRef as any}
@@ -197,6 +217,9 @@ export default function ChatBot({ noteId, enabled }: ChatBotProps) {
             </button>
             <button onClick={handleClear} className="text-xs px-2 py-1 rounded bg-gray-800 border border-gray-700 text-gray-200 active:scale-[.98]">
               Clear
+            </button>
+            <button onClick={(e) => { e.stopPropagation(); setMinimized(true); }} className="text-xs px-2 py-1 rounded bg-gray-800 border border-gray-700 text-gray-200 active:scale-[.98]">
+              Minimize
             </button>
           </div>
         </div>
