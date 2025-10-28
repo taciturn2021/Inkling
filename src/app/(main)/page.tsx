@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Header from '@/components/Header';
 import LabelFilters from '@/components/LabelFilters';
 import NoteList from '@/components/NoteList';
@@ -28,6 +28,8 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [isLabelManagerOpen, setIsLabelManagerOpen] = useState<boolean>(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [searchInput, setSearchInput] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const refreshNow = async (updateUi = true) => {
     try {
@@ -82,9 +84,25 @@ export default function DashboardPage() {
     bootstrapFromCache();
   }, []);
 
-  const filteredNotes = selectedLabel
-    ? notes.filter((n) => n.labels.some((l) => l._id === selectedLabel))
-    : notes;
+  // Debounce search input for snappy UX
+  useEffect(() => {
+    const id = setTimeout(() => setSearchQuery(searchInput.trim()), 200);
+    return () => clearTimeout(id);
+  }, [searchInput]);
+
+  const filteredNotes = useMemo(() => {
+    const byLabel = selectedLabel
+      ? notes.filter((n) => n.labels.some((l) => l._id === selectedLabel))
+      : notes;
+    if (!searchQuery) return byLabel;
+    const q = searchQuery.toLowerCase();
+    return byLabel.filter((n) => {
+      const title = (n.title || '').toLowerCase();
+      const content = (n.content || '').toLowerCase();
+      if (title.includes(q) || content.includes(q)) return true;
+      return n.labels.some((l) => (l.name || '').toLowerCase().includes(q));
+    });
+  }, [notes, selectedLabel, searchQuery]);
 
   const handleLabelsUpdate = async () => {
     try {
@@ -95,7 +113,13 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
-      <Header onManageLabels={() => setIsLabelManagerOpen(true)} onRefresh={() => refreshNow(true)} refreshing={refreshing} />
+      <Header
+        onManageLabels={() => setIsLabelManagerOpen(true)}
+        onRefresh={() => refreshNow(true)}
+        refreshing={refreshing}
+        searchTerm={searchInput}
+        onSearchChange={setSearchInput}
+      />
 
       <LabelFilters labels={labels} selectedLabel={selectedLabel} onSelectLabel={setSelectedLabel} />
 
@@ -107,8 +131,17 @@ export default function DashboardPage() {
         <NoteList notes={filteredNotes} />
       ) : (
         <div className="text-center py-16">
-          <h2 className="text-2xl font-semibold mb-4">Welcome to your notes!</h2>
-          <p className="text-gray-400">You don't have any notes yet. Click the '+' button to create your first note.</p>
+          {notes.length === 0 ? (
+            <>
+              <h2 className="text-2xl font-semibold mb-4">Welcome to your notes!</h2>
+              <p className="text-gray-400">You don't have any notes yet. Click the '+' button to create your first note.</p>
+            </>
+          ) : (
+            <>
+              <h2 className="text-2xl font-semibold mb-2">No results</h2>
+              <p className="text-gray-400">Try a different search or clear filters.</p>
+            </>
+          )}
         </div>
       )}
 
