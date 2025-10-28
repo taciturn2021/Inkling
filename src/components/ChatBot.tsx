@@ -340,7 +340,7 @@ export default function ChatBot({ noteId, enabled }: ChatBotProps) {
           ) : (
             messages.map((m) => (
               <div key={m.id} className={`flex ${m.role === 'assistant' ? 'justify-start' : 'justify-end'}`}>
-                <div className={`max-w-[85%] px-3 py-2 rounded-lg text-sm leading-relaxed ${m.role === 'assistant' ? 'bg-gray-800 text-gray-100' : 'bg-blue-600 text-white'}`}>
+                <div className={`max-w-[85%] px-3 py-2 rounded-lg text-sm leading-relaxed break-words ${m.role === 'assistant' ? 'bg-gray-800 text-gray-100' : 'bg-blue-600 text-white'}`}>
                   {m.role === 'assistant' ? (
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm, remarkMath]}
@@ -349,6 +349,11 @@ export default function ChatBot({ noteId, enabled }: ChatBotProps) {
                         a: (props) => <a {...props} target="_blank" rel="noopener noreferrer" />,
                         table: ({ children }) => (
                           <div className="-mx-2 overflow-x-auto"><table className="min-w-full">{children}</table></div>
+                        ),
+                        pre: ({ children }) => (
+                          <div className="-mx-2 overflow-x-auto">
+                            <pre className="min-w-full whitespace-pre">{children}</pre>
+                          </div>
                         ),
                         code: (props: any) => {
                           const { className, children, ...rest } = props;
