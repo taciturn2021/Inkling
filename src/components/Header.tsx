@@ -11,9 +11,11 @@ type HeaderProps = {
   refreshing?: boolean;
   searchTerm: string;
   onSearchChange: (value: string) => void;
+  onRefreshChat?: () => void;
+  refreshingChat?: boolean;
 };
 
-export default function Header({ onManageLabels, onRefresh, refreshing, searchTerm, onSearchChange }: HeaderProps) {
+export default function Header({ onManageLabels, onRefresh, refreshing, searchTerm, onSearchChange, onRefreshChat, refreshingChat }: HeaderProps) {
   const router = useRouter();
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
 
@@ -84,6 +86,14 @@ export default function Header({ onManageLabels, onRefresh, refreshing, searchTe
               className="rounded-lg bg-gray-800 border border-gray-700 text-gray-100 text-sm px-3 py-2 active:scale-[.98]"
             >
               {refreshing ? 'Refreshing…' : 'Refresh'}
+            </button>
+          )}
+          {onRefreshChat && (
+            <button
+              onClick={onRefreshChat}
+              className="rounded-lg bg-gray-800 border border-gray-700 text-gray-100 text-sm px-3 py-2 active:scale-[.98] hidden sm:inline-flex"
+            >
+              {refreshingChat ? 'Refreshing chat…' : 'Refresh chat'}
             </button>
           )}
           <button

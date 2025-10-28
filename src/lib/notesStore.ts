@@ -10,10 +10,17 @@ import {
   type CachedLabel,
   getAllLabels as idbGetAllLabels,
   putLabels,
+  // chat helpers
+  type CachedChatMessage,
+  getChatForNote,
+  replaceChatForNote,
+  appendChatMessages,
+  clearChatForNote,
 } from './idb';
 
 // A tiny client-side store around IndexedDB for notes/labels
 export type { CachedNote, CachedLabel } from './idb';
+export type { CachedChatMessage } from './idb';
 
 export async function loadCachedNotes(): Promise<CachedNote[]> {
   const notes = await idbGetAll();
@@ -62,4 +69,50 @@ export async function refreshLabelsFromServer(): Promise<CachedLabel[]> {
   }));
   await putLabels(normalized);
   return normalized;
+}
+
+// Chat store mirroring notes behavior
+export async function loadCachedChat(noteId: string): Promise<CachedChatMessage[]> {
+  return getChatForNote(noteId);
+}
+
+export function normalizeServerChatMessages(noteId: string, raw: any[]): CachedChatMessage[] {
+  return (raw || []).map((m) => ({
+    id: String(m._id || `${noteId}-${m.role}-${m.createdAt || Date.now()}-${Math.random().toString(36).slice(2)}`),
+    note: noteId,
+    role: m.role === 'assistant' || m.role === 'system' ? m.role : 'user',
+    content: String(m.content || ''),
+    createdAt: m.createdAt ? new Date(m.createdAt).getTime() : Date.now(),
+  })).sort((a, b) => a.createdAt - b.createdAt);
+}
+
+export async function refreshChatFromServer(noteId: string): Promise<CachedChatMessage[]> {
+  const res = await fetch(`/api/notes/${noteId}/chat`, { cache: 'no-store' });
+  if (!res.ok) throw new Error('Failed to fetch chat');
+  const server = (await res.json()) as any[];
+  const normalized = normalizeServerChatMessages(noteId, server);
+  await replaceChatForNote(noteId, normalized);
+  return normalized;
+}
+
+export async function sendChatMessage(noteId: string, content: string): Promise<CachedChatMessage[]> {
+  const res = await fetch(`/api/notes/${noteId}/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.message || 'Failed to send message');
+  }
+  const server = (await res.json()) as any[];
+  const normalized = normalizeServerChatMessages(noteId, server);
+  await appendChatMessages(normalized);
+  return (await getChatForNote(noteId));
+}
+
+export async function clearChatHistory(noteId: string) {
+  const res = await fetch(`/api/notes/${noteId}/chat`, { method: 'DELETE' });
+  if (!res.ok) throw new Error('Failed to clear chat');
+  await clearChatForNote(noteId);
 }

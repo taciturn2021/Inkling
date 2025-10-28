@@ -31,7 +31,8 @@ export async function POST(req) {
 
     const user = await User.create({ 
       username, 
-      password: hashedPassword 
+      password: hashedPassword,
+      role: 'free',
     });
 
     return NextResponse.json({ 

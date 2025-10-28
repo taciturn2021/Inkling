@@ -5,6 +5,8 @@ import NoteViewer from '@/components/NoteViewer';
 import ShareToggle from '@/components/ShareToggle';
 import dbConnect from '@/lib/db';
 import Note from '@/models/Note';
+import { cookies } from 'next/headers';
+import jwt from 'jsonwebtoken';
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
@@ -24,6 +26,17 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 
 export default async function NoteViewPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  let isPremium = false;
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get('token')?.value;
+    if (token && process.env.JWT_SECRET) {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      if (decoded && typeof decoded === 'object' && 'role' in decoded) {
+        isPremium = (decoded as any).role === 'premium';
+      }
+    }
+  } catch {}
   return (
     <div className="min-h-screen bg-gray-900 text-white">
       <div className="sticky top-0 z-10 bg-gray-900/80 backdrop-blur border-b border-gray-800">
@@ -44,6 +57,13 @@ export default async function NoteViewPage({ params }: { params: Promise<{ id: s
       </div>
 
       <NoteViewer id={id} />
+      {isPremium ? (
+        // @ts-expect-error Async server-side dynamic import
+        await (async () => {
+          const ChatBot = (await import('@/components/ChatBot')).default;
+          return <ChatBot noteId={id} enabled={true} />;
+        })()
+      ) : null}
     </div>
   );
 }
