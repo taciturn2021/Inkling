@@ -22,6 +22,7 @@ type Label = { _id: string; name: string; color: string };
 type Note = CachedNote;
 
 export default function DashboardPage() {
+  const LAST_LABEL_KEY = 'ui:lastSelectedLabel';
   const [notes, setNotes] = useState<Note[]>([]);
   const [labels, setLabels] = useState<Label[]>([]);
   const [selectedLabel, setSelectedLabel] = useState<string | null>(null);
@@ -84,6 +85,27 @@ export default function DashboardPage() {
     bootstrapFromCache();
   }, []);
 
+  // Restore last selected label when labels are available
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (selectedLabel !== null) return;
+    try {
+      const saved = localStorage.getItem(LAST_LABEL_KEY);
+      if (saved && labels.some((l) => l._id === saved)) {
+        setSelectedLabel(saved);
+      }
+    } catch {}
+  }, [labels, selectedLabel]);
+
+  const handleSelectLabel = (id: string | null) => {
+    setSelectedLabel(id);
+    if (typeof window === 'undefined') return;
+    try {
+      if (id) localStorage.setItem(LAST_LABEL_KEY, id);
+      else localStorage.removeItem(LAST_LABEL_KEY);
+    } catch {}
+  };
+
   // Debounce search input for snappy UX
   useEffect(() => {
     const id = setTimeout(() => setSearchQuery(searchInput.trim()), 200);
@@ -121,7 +143,7 @@ export default function DashboardPage() {
         onSearchChange={setSearchInput}
       />
 
-      <LabelFilters labels={labels} selectedLabel={selectedLabel} onSelectLabel={setSelectedLabel} />
+      <LabelFilters labels={labels} selectedLabel={selectedLabel} onSelectLabel={handleSelectLabel} />
 
       {loading ? (
         <div className="flex justify-center items-center h-64">
