@@ -1,6 +1,10 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
 import {
   loadCachedChat,
   refreshChatFromServer,
@@ -237,7 +241,26 @@ export default function ChatBot({ noteId, enabled }: ChatBotProps) {
             messages.map((m) => (
               <div key={m.id} className={`flex ${m.role === 'assistant' ? 'justify-start' : 'justify-end'}`}>
                 <div className={`max-w-[85%] px-3 py-2 rounded-lg text-sm leading-relaxed ${m.role === 'assistant' ? 'bg-gray-800 text-gray-100' : 'bg-blue-600 text-white'}`}>
-                  {m.content}
+                  {m.role === 'assistant' ? (
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm, remarkMath]}
+                      rehypePlugins={[rehypeKatex]}
+                      components={{
+                        a: (props) => <a {...props} target="_blank" rel="noopener noreferrer" />,
+                        table: ({ children }) => (
+                          <div className="-mx-2 overflow-x-auto"><table className="min-w-full">{children}</table></div>
+                        ),
+                        code: (props: any) => {
+                          const { className, children, ...rest } = props;
+                          return <code className={className} {...rest}>{children}</code>;
+                        },
+                      }}
+                    >
+                      {m.content}
+                    </ReactMarkdown>
+                  ) : (
+                    m.content
+                  )}
                 </div>
               </div>
             ))

@@ -64,6 +64,8 @@ export async function POST(req, { params }) {
     // Build context from note content + recent history
     const history = await ChatMessage.find({ user: user.userId, note: id }).sort({ createdAt: 1 }).lean();
     const systemPrompt = `You are a helpful assistant answering questions about the user's note. Answer concisely.
+You can and should use Markdown in your responses (headings, lists, tables, code blocks, links).
+Prefer short sections and bullet points. Use math (LaTeX) when applicable.
 Note title: ${note.title || ''}
 Note content (Markdown or text):\n${note.content || ''}`;
 
