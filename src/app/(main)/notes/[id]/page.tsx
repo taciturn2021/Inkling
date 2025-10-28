@@ -5,8 +5,7 @@ import NoteViewer from '@/components/NoteViewer';
 import ShareToggle from '@/components/ShareToggle';
 import dbConnect from '@/lib/db';
 import Note from '@/models/Note';
-import { cookies } from 'next/headers';
-import jwt from 'jsonwebtoken';
+import { verifyToken } from '@/lib/auth';
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
@@ -28,14 +27,8 @@ export default async function NoteViewPage({ params }: { params: Promise<{ id: s
   const { id } = await params;
   let isPremium = false;
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('token')?.value;
-    if (token && process.env.JWT_SECRET) {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      if (decoded && typeof decoded === 'object' && 'role' in decoded) {
-        isPremium = (decoded as any).role === 'premium';
-      }
-    }
+    const decoded: any = await verifyToken();
+    isPremium = decoded?.role === 'premium';
   } catch {}
   return (
     <div className="min-h-screen bg-gray-900 text-white">
