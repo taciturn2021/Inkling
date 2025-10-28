@@ -3,10 +3,19 @@ import User from '@/models/User';
 import bcrypt from 'bcryptjs';
 import { NextResponse } from 'next/server';
 
+export async function GET() {
+  const allowed = process.env.ALLOW_REGISTRATION === 'true';
+  return NextResponse.json({ allowed });
+}
+
 export async function POST(req) {
   await dbConnect();
 
   try {
+    if (process.env.ALLOW_REGISTRATION !== 'true') {
+      return new NextResponse('Registration is disabled', { status: 403 });
+    }
+
     const { username, password } = await req.json();
 
     if (!username || !password) {
