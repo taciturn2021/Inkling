@@ -27,9 +27,11 @@ export default function ChatBot({ noteId, enabled }: ChatBotProps) {
   const [dragging, setDragging] = useState(false);
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
   const [minimized, setMinimized] = useState(false);
+  const [size, setSize] = useState<{ w: number; h: number } | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const containerRef = useRef<HTMLElement | null>(null);
   const sizeRef = useRef<{ w: number; h: number }>({ w: 0, h: 0 });
+  const minSizeRef = useRef<{ w: number; h: number } | null>(null);
 
   // Read/Write persisted position
   useEffect(() => {
@@ -42,6 +44,13 @@ export default function ChatBot({ noteId, enabled }: ChatBotProps) {
       }
       const minRaw = localStorage.getItem('chat:minimized');
       if (minRaw) setMinimized(minRaw === '1');
+      const sizeRaw = localStorage.getItem('chat:size');
+      if (sizeRaw) {
+        try {
+          const s = JSON.parse(sizeRaw) as { w: number; h: number };
+          setSize(s);
+        } catch {}
+      }
     } catch {}
   }, [enabled]);
 
@@ -56,6 +65,15 @@ export default function ChatBot({ noteId, enabled }: ChatBotProps) {
     if (!enabled) return;
     try { localStorage.setItem('chat:minimized', minimized ? '1' : '0'); } catch {}
   }, [minimized, enabled]);
+
+  // Persist size
+  useEffect(() => {
+    if (!enabled) return;
+    if (size) {
+      try { localStorage.setItem('chat:size', JSON.stringify(size)); } catch {}
+      sizeRef.current = { ...size };
+    }
+  }, [size, enabled]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -83,17 +101,36 @@ export default function ChatBot({ noteId, enabled }: ChatBotProps) {
     const el = containerRef.current;
     if (!el) return;
     const compute = () => {
-      const w = Math.min(window.innerWidth * 0.92, 352); // 22rem max
-      const h = Math.min(window.innerHeight * 0.6, 480); // rough height cap
-      sizeRef.current = { w, h };
-      const x = Math.max(8, window.innerWidth - w - 16);
-      const y = Math.max(8, window.innerHeight - Math.min(el.clientHeight || h, h) - 16);
+      const baseW = Math.min(window.innerWidth * 0.92, 300); // reduced min width
+      const baseH = Math.min(window.innerHeight * 0.6, 340); // further reduced min height
+      // Establish minimum size from initial
+      minSizeRef.current = { w: baseW, h: baseH };
+      // Initialize size if not restored
+      if (!size) {
+        sizeRef.current = { w: baseW, h: baseH };
+        setSize({ w: baseW, h: baseH });
+      } else {
+        // Clamp restored size within viewport and at least min size
+        const maxW = Math.max(200, window.innerWidth - 16);
+        const maxH = Math.max(160, window.innerHeight - 16);
+        const clamped = {
+          w: Math.min(Math.max(size.w, baseW), maxW),
+          h: Math.min(Math.max(size.h, baseH), maxH),
+        };
+        sizeRef.current = clamped;
+        // Only set if changed to avoid loops
+        if (clamped.w !== size.w || clamped.h !== size.h) setSize(clamped);
+      }
+      const effW = sizeRef.current.w || baseW;
+      const effH = sizeRef.current.h || baseH;
+      const x = Math.max(8, window.innerWidth - effW - 16);
+      const y = Math.max(8, window.innerHeight - Math.min(el.clientHeight || effH, effH) - 16);
       setPos({ x, y });
     };
     // wait a frame for layout
     const id = requestAnimationFrame(compute);
     return () => cancelAnimationFrame(id);
-  }, [enabled, pos]);
+  }, [enabled, pos, size]);
 
   // Clamp on resize
   useEffect(() => {
@@ -102,18 +139,81 @@ export default function ChatBot({ noteId, enabled }: ChatBotProps) {
       setPos((prev) => {
         if (!prev) return prev;
         const rect = containerRef.current?.getBoundingClientRect();
-        const w = rect?.width ?? Math.min(window.innerWidth * 0.92, 352);
-        const h = rect?.height ?? Math.min(window.innerHeight * 0.6, 480);
+        const w = rect?.width ?? Math.min(window.innerWidth * 0.92, 300);
+        const h = rect?.height ?? Math.min(window.innerHeight * 0.6, 340);
         sizeRef.current = { w, h };
         return {
           x: Math.min(Math.max(8, prev.x), Math.max(8, window.innerWidth - w - 8)),
           y: Math.min(Math.max(8, prev.y), Math.max(8, window.innerHeight - h - 8)),
         };
       });
+      // Clamp stored size against viewport and minimums
+      if (size) {
+        const base = minSizeRef.current || { w: Math.min(window.innerWidth * 0.92, 300), h: Math.min(window.innerHeight * 0.6, 340) };
+        const maxW = Math.max(200, window.innerWidth - 16);
+        const maxH = Math.max(160, window.innerHeight - 16);
+        const clamped = {
+          w: Math.min(Math.max(size.w, base.w), maxW),
+          h: Math.min(Math.max(size.h, base.h), maxH),
+        };
+        if (clamped.w !== size.w || clamped.h !== size.h) setSize(clamped);
+      }
     };
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
-  }, [enabled]);
+  }, [enabled, size]);
+
+  // Clamp restored position on mount/update to keep window on-screen
+  useEffect(() => {
+    if (!enabled) return;
+    if (!pos) return;
+    const effW = size?.w ?? Math.min(window.innerWidth * 0.92, 300);
+    const effH = size?.h ?? Math.min(window.innerHeight * 0.6, 420);
+    const nx = Math.min(Math.max(8, pos.x), Math.max(8, window.innerWidth - effW - 8));
+    const ny = Math.min(Math.max(8, pos.y), Math.max(8, window.innerHeight - effH - 8));
+    if (nx !== pos.x || ny !== pos.y) setPos({ x: nx, y: ny });
+  }, [enabled, pos, size]);
+
+  // Resize handle drag
+  const onResizePointerDown = (e: React.PointerEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const start = sizeRef.current || { w: Math.min(window.innerWidth * 0.92, 300), h: Math.min(window.innerHeight * 0.6, 420) };
+    const minB = minSizeRef.current || { w: start.w, h: start.h };
+    const move = (ev: PointerEvent) => {
+      // Prevent page from scrolling while resizing on touch devices
+      try { ev.preventDefault(); } catch {}
+      const dx = ev.clientX - startX;
+      const dy = ev.clientY - startY;
+      const nextW = start.w + dx;
+      const nextH = start.h + dy;
+      const maxW = Math.max(200, window.innerWidth - 16);
+      const maxH = Math.max(160, window.innerHeight - 16);
+      const clamped = {
+        w: Math.min(Math.max(nextW, minB.w), maxW),
+        h: Math.min(Math.max(nextH, minB.h), maxH),
+      };
+      sizeRef.current = clamped;
+      setSize(clamped);
+      // Keep within viewport on resize
+      setPos((prev) => {
+        if (!prev) return prev;
+        return {
+          x: Math.min(Math.max(8, prev.x), Math.max(8, window.innerWidth - clamped.w - 8)),
+          y: Math.min(Math.max(8, prev.y), Math.max(8, window.innerHeight - clamped.h - 8)),
+        };
+      });
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    (e.target as Element).setPointerCapture?.(e.pointerId);
+  };
 
   const handleRefresh = async () => {
     if (!enabled) return;
@@ -202,10 +302,10 @@ export default function ChatBot({ noteId, enabled }: ChatBotProps) {
       style={{
         left: pos ? `${pos.x}px` : undefined,
         top: pos ? `${pos.y}px` : undefined,
-        width: 'min(92vw, 22rem)',
+        width: size ? `${size.w}px` : 'min(92vw, 22rem)',
       }}
     >
-      <div className="rounded-2xl overflow-hidden shadow-xl border border-gray-800 bg-gray-900/95 backdrop-blur supports-backdrop-filter:bg-gray-900/75">
+      <div className="relative rounded-2xl overflow-hidden shadow-xl border border-gray-800 bg-gray-900/95 backdrop-blur supports-backdrop-filter:bg-gray-900/75">
         {/* Header */}
         <div
           className="px-3 py-2 flex items-center gap-2 border-b border-gray-800 cursor-grab active:cursor-grabbing touch-none"
@@ -229,7 +329,7 @@ export default function ChatBot({ noteId, enabled }: ChatBotProps) {
         </div>
 
         {/* Body */}
-        <div className="max-h-72 overflow-y-auto p-3 space-y-2">
+        <div className={`${size ? '' : 'max-h-72'} overflow-y-auto p-3 space-y-2`} style={size ? { height: `${size.h}px` } : undefined}>
           {bootError && (
             <div className="text-xs text-yellow-300 bg-yellow-900/30 border border-yellow-800 rounded p-2">
               {bootError}
@@ -297,6 +397,20 @@ export default function ChatBot({ noteId, enabled }: ChatBotProps) {
             Send
           </button>
         </form>
+        {/* Resize handle button (drag to resize) */}
+        <div className="absolute bottom-2 right-2">
+          <button
+            aria-label="Resize"
+            onPointerDown={onResizePointerDown}
+            className="h-7 w-7 rounded-md bg-gray-800/90 border border-gray-700 text-gray-300 active:scale-[.98] flex items-center justify-center touch-none"
+            title="Drag to resize"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v6h-6"/>
+              <path d="M21 21l-6-6"/>
+            </svg>
+          </button>
+        </div>
       </div>
     </section>
   );

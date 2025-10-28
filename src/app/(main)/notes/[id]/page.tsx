@@ -25,11 +25,6 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 
 export default async function NoteViewPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  let isPremium = false;
-  try {
-    const decoded: any = await verifyToken();
-    isPremium = decoded?.role === 'premium';
-  } catch {}
   return (
     <div className="min-h-screen bg-gray-900 text-white">
       <div className="sticky top-0 z-10 bg-gray-900/80 backdrop-blur border-b border-gray-800">
@@ -50,12 +45,10 @@ export default async function NoteViewPage({ params }: { params: Promise<{ id: s
       </div>
 
       <NoteViewer id={id} />
-      {isPremium ? (
-        await (async () => {
-          const ChatBotComp = (await import('@/components/ChatBot')).default;
-          return <ChatBotComp noteId={id} enabled={true} />;
-        })()
-      ) : null}
+      {await (async () => {
+        const ChatBotComp = (await import('@/components/ChatBot')).default;
+        return <ChatBotComp noteId={id} enabled={true} />;
+      })()}
     </div>
   );
 }
