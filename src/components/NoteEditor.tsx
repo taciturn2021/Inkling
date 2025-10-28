@@ -222,15 +222,18 @@ export default function NoteEditor({ noteId }: { noteId?: string }) {
         ensureNoteId={ensureNoteId}
       />
 
-      <div className="flex items-center justify-between mb-4 text-sm text-gray-400">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 text-sm text-gray-400 gap-2">
         <span>Markdown only. Use the button or paste an image to embed.</span>
-        <button
-          onClick={handleConvertAndSave}
-          disabled={isConverting || isSaving}
-          className="bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white font-semibold px-3 py-1.5 rounded"
-        >
-          {isConverting ? 'Converting…' : 'Convert & Save' }
-        </button>
+        <div className="flex flex-col items-end sm:items-center gap-1">
+          <button
+            onClick={handleConvertAndSave}
+            disabled={isConverting || isSaving}
+            className="bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white font-semibold px-3 py-1.5 rounded"
+          >
+            {isConverting ? 'Converting…' : 'Convert & Save' }
+          </button>
+          <span className="text-xs text-gray-500">Use AI to convert to markdown</span>
+        </div>
       </div>
 
       <div className="mb-4">
