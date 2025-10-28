@@ -7,11 +7,10 @@ export default function NoteCard({ note }: { note: Note }) {
     <Link
       href={`/notes/${note._id}`}
       prefetch={false}
-      className="block bg-gray-800 p-4 rounded-xl shadow-md hover:shadow-lg hover:translate-y-[-2px] transition-transform"
+      className="block bg-gray-800 p-3 rounded-xl shadow-md hover:shadow-lg hover:translate-y-[-2px] transition-transform"
     >
-      <h3 className="font-semibold text-base mb-2 text-white">{note.title || 'Untitled Note'}</h3>
-      <p className="text-gray-400 mb-3 text-sm">{note.content.substring(0, 120)}...</p>
-      <div className="flex flex-wrap gap-1.5 mt-2">
+      <h3 className="font-semibold text-base mb-1 text-white truncate">{note.title || 'Untitled Note'}</h3>
+      <div className="flex flex-wrap gap-1.5 mt-1">
         {note.labels.map((label) => (
           <span
             key={label._id}
