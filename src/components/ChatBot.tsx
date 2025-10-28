@@ -348,16 +348,16 @@ export default function ChatBot({ noteId, enabled }: ChatBotProps) {
                       components={{
                         a: (props) => <a {...props} target="_blank" rel="noopener noreferrer" />,
                         table: ({ children }) => (
-                          <div className="-mx-2 overflow-x-auto"><table className="min-w-full">{children}</table></div>
+                          <div className="-mx-2">
+                            <table className="min-w-full break-words">{children}</table>
+                          </div>
                         ),
                         pre: ({ children }) => (
-                          <div className="-mx-2 overflow-x-auto">
-                            <pre className="min-w-full whitespace-pre">{children}</pre>
-                          </div>
+                          <pre className="whitespace-pre-wrap break-words">{children}</pre>
                         ),
                         code: (props: any) => {
                           const { className, children, ...rest } = props;
-                          return <code className={className} {...rest}>{children}</code>;
+                          return <code className={`${className || ''} break-words`} {...rest}>{children}</code>;
                         },
                       }}
                     >
