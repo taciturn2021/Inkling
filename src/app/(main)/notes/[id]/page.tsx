@@ -51,10 +51,9 @@ export default async function NoteViewPage({ params }: { params: Promise<{ id: s
 
       <NoteViewer id={id} />
       {isPremium ? (
-        // @ts-expect-error Async server-side dynamic import
         await (async () => {
-          const ChatBot = (await import('@/components/ChatBot')).default;
-          return <ChatBot noteId={id} enabled={true} />;
+          const ChatBotComp = (await import('@/components/ChatBot')).default;
+          return <ChatBotComp noteId={id} enabled={true} />;
         })()
       ) : null}
     </div>
