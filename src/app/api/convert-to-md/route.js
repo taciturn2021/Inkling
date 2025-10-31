@@ -14,12 +14,17 @@ export async function POST(req) {
 
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
-    const prompt = `Convert the following text into clean GitHub Flavored Markdown (GFM) compatible with remark-gfm and rehype-katex.
+    const prompt = `Convert the following text into clean GitHub Flavored Markdown (GFM) for a renderer that uses remark-gfm and rehype-katex (KaTeX).
 Rules:
-- If it's already valid Markdown, return it unchanged.
-- Output ONLY the Markdown; no explanations or code fences.
-- Preserve LaTeX math exactly: inline $...$ and block $$...$$.
-- Keep code blocks/inline code. Add language hints to fenced blocks where obvious (e.g., \`\`\`ts).
+- Output ONLY the Markdown; no explanations or extra code fences.
+- Normalize LaTeX math delimiters to what the renderer expects:
+  - Convert \( ... \) to $...$ (inline math).
+  - Convert \[ ... \] to $$
+...
+$$ (block math) and ensure a blank line before and after the block.
+  - If math already uses $...$ or $$...$$, keep it unchanged.
+  - Do not escape backslashes inside math; keep commands like \frac, \left, \right.
+- Keep code blocks and inline code. Add language hints to fenced blocks where obvious (e.g., \`\`\`ts).
 - Use proper headings (#..######), list syntax, links, images, and tables.
 - Avoid raw HTML where a Markdown alternative exists.
 - Do not add frontmatter or any metadata.
