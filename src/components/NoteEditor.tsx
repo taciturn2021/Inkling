@@ -86,7 +86,13 @@ export default function NoteEditor({ noteId }: { noteId?: string }) {
       setIsSaving(true);
       const res = await saveNote({ title, content, format, labels: selectedLabels });
       if (res.ok) {
-        try { await refreshNotesFromServer(); } catch {}
+        try { 
+          await refreshNotesFromServer(); 
+          // Mark that notes were just updated so main page knows to refresh
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem('notes:justUpdated', Date.now().toString());
+          }
+        } catch {}
         router.push('/');
       } else {
         const data = await res.json().catch(() => ({}));
@@ -102,8 +108,15 @@ export default function NoteEditor({ noteId }: { noteId?: string }) {
   const handleDelete = async () => {
     if (isNew) return;
     try {
-      const res = await fetch(`/api/notes/${noteId}`, { method: 'DELETE' });
+      const res = await fetch(`/api/notes/${noteIdState}`, { method: 'DELETE' });
       if (res.ok) {
+        try {
+          await refreshNotesFromServer();
+          // Mark that notes were just updated so main page knows to refresh
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem('notes:justUpdated', Date.now().toString());
+          }
+        } catch {}
         router.push('/');
       } else {
         const data = await res.json().catch(() => ({}));
@@ -148,7 +161,13 @@ export default function NoteEditor({ noteId }: { noteId?: string }) {
       }
 
       setProgress(100);
-      try { await refreshNotesFromServer(); } catch {}
+      try { 
+        await refreshNotesFromServer(); 
+        // Mark that notes were just updated so main page knows to refresh
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('notes:justUpdated', Date.now().toString());
+        }
+      } catch {}
       router.push('/');
     } catch (err) {
       setError('An unexpected error occurred.');
@@ -167,7 +186,13 @@ export default function NoteEditor({ noteId }: { noteId?: string }) {
     const created = await res.json();
     const newId = String(created._id);
     setNoteIdState(newId);
-    try { await refreshNotesFromServer(); } catch {}
+    try { 
+      await refreshNotesFromServer(); 
+      // Mark that notes were just updated so main page knows to refresh
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('notes:justUpdated', Date.now().toString());
+      }
+    } catch {}
     // Do not navigate immediately; edits continue seamlessly. User can delete after id appears.
     return newId;
   }, [isNew, noteIdState, title, content, selectedLabels, format]);

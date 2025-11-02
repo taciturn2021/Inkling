@@ -61,7 +61,28 @@ export default function DashboardPage() {
       setNotes(cachedNotes);
       setLabels(cachedLabels);
 
-      if (!cachedNotes || cachedNotes.length === 0) {
+      // Check if notes were just updated (within last 5 seconds)
+      let shouldRefresh = false;
+      if (typeof window !== 'undefined') {
+        try {
+          const justUpdated = sessionStorage.getItem('notes:justUpdated');
+          if (justUpdated) {
+            const updateTime = parseInt(justUpdated, 10);
+            const timeSinceUpdate = Date.now() - updateTime;
+            // If updated within last 5 seconds, refresh from server
+            if (timeSinceUpdate < 5000) {
+              shouldRefresh = true;
+            }
+            // Clear the flag
+            sessionStorage.removeItem('notes:justUpdated');
+          }
+        } catch {}
+      }
+
+      if (shouldRefresh) {
+        // Notes were just updated, refresh from server immediately
+        await refreshNow(true);
+      } else if (!cachedNotes || cachedNotes.length === 0) {
         const fresh = await refreshNotesFromServer();
         setNotes(fresh);
       } else {

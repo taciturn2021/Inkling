@@ -79,6 +79,13 @@ export async function getNote(id: string): Promise<CachedNote | undefined> {
   return db.get('notes', id);
 }
 
+export async function deleteNote(id: string) {
+  const db = await getDB();
+  try {
+    await db.delete('notes', id);
+  } catch {}
+}
+
 export async function clearNotes() {
   const db = await getDB();
   const tx = db.transaction('notes', 'readwrite');
