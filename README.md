@@ -1,36 +1,99 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Inkling
 
-## Getting Started
+> ⚡ This app is partially **vibecoded**
 
-First, run the development server:
+A personal note-taking application with AI-powered features, built with Next.js and designed with a mobile-first approach.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## Features
+
+- **Smart Markdown Conversion**: Automatically converts any text input into beautifully formatted Markdown for enhanced readability
+- **Mobile-First Interface**: Optimized user experience designed specifically for mobile devices
+- **AI-Powered Chat**: Each note comes with its own personal chatbot powered by Google's Gemini AI, allowing you to ask questions about your notes and get instant answers
+- **Rich Text Rendering**: Full support for mathematical equations (via KaTeX), GitHub Flavored Markdown, and more
+- **Secure Authentication**: Built-in user authentication with JWT tokens and bcrypt password hashing
+- **Offline Support**: IndexedDB integration for local data persistence
+- **Real-time Note Management**: Create, edit, and organize your notes seamlessly
+
+## Tech Stack
+
+- **Framework**: Next.js 
+- **Database**: MongoDB
+- **AI**: Google Generative AI (Gemini)
+- **Markdown**: react-markdown with plugins for GFM, math rendering, and syntax highlighting
+
+## Prerequisites
+
+- Node.js >= 20.0.0
+- MongoDB database
+- Google Gemini API key
+
+## Environment Variables
+
+Create a `.env.local` file in the root directory with the following variables:
+
+```env
+MONGODB_URI=your_mongodb_connection_string
+MONGODB_DB=your_database_name
+GEMINI_API_KEY=your_gemini_api_key
+JWT_SECRET=your_jwt_secret_key
+PUBLIC_BASE_URL=http://localhost:3000
+ALLOW_REGISTRATION=true
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Environment Variable Descriptions
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- `MONGODB_URI`: Your MongoDB connection string
+- `MONGODB_DB`: The name of your MongoDB database
+- `GEMINI_API_KEY`: Your Google Gemini API key for AI features
+- `JWT_SECRET`: Secret key for JWT token generation (use a strong random string)
+- `PUBLIC_BASE_URL`: The base URL of your application
+- `ALLOW_REGISTRATION`: Set to `true` to allow new user registrations, `false` to disable
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Installation
 
-## Learn More
+1. Clone the repository:
+```bash
+git clone https://github.com/taciturn2021/Inkling.git
+cd Inkling
+```
 
-To learn more about Next.js, take a look at the following resources:
+2. Install dependencies:
+```bash
+npm ci
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+3. Set up your environment variables (see above)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+4. Run the development server:
+```bash
+npm run dev
+```
 
-## Deploy on Vercel
+5. Open [http://localhost:3000](http://localhost:3000) in your browser
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Available Scripts
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `npm run dev` - Start the development server
+- `npm run build` - Build the application for production
+- `npm start` - Start the production server
+- `npm run lint` - Run ESLint for code quality checks
+
+## Deployment
+
+This application is configured for deployment on Coolify using Nixpacks. The production server runs on port 8476 by default.
+
+### Coolify Deployment
+
+The repository includes a `nixpacks.toml` configuration file that automatically sets up the deployment environment with:
+- Node.js 20
+- Production build optimization
+- Automatic dependency installation
+
+## License
+
+This project is licensed under the GNU General Public License v3.0 - see the [LICENSE](LICENSE) file for details.
+
+## Author
+
+Created by [@taciturn2021](https://github.com/taciturn2021)
+
