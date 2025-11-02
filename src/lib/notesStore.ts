@@ -25,8 +25,8 @@ export type { CachedChatMessage } from './idb';
 
 export async function loadCachedNotes(): Promise<CachedNote[]> {
   const notes = await idbGetAll();
-  // Sort newest first by createdAt if available
-  return notes.sort((a, b) => (b.createdAt?.localeCompare(a.createdAt || '') || 0));
+  // Don't sort here - let the component handle sorting based on user preference
+  return notes;
 }
 
 export async function getCachedNote(id: string) {

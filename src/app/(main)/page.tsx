@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import Header from '@/components/Header';
 import LabelFilters from '@/components/LabelFilters';
+import SortSelector, { type SortOption } from '@/components/SortSelector';
 import NoteList from '@/components/NoteList';
 import FloatingActionButton from '@/components/FloatingActionButton';
 import LabelManager from '@/components/LabelManager';
@@ -23,9 +24,11 @@ type Note = CachedNote;
 
 export default function DashboardPage() {
   const LAST_LABEL_KEY = 'ui:lastSelectedLabel';
+  const LAST_SORT_KEY = 'ui:lastSelectedSort';
   const [notes, setNotes] = useState<Note[]>([]);
   const [labels, setLabels] = useState<Label[]>([]);
   const [selectedLabel, setSelectedLabel] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [loading, setLoading] = useState<boolean>(true);
   const [isLabelManagerOpen, setIsLabelManagerOpen] = useState<boolean>(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -118,12 +121,31 @@ export default function DashboardPage() {
     } catch {}
   }, [labels, selectedLabel]);
 
+  // Restore last selected sort option
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const saved = localStorage.getItem(LAST_SORT_KEY);
+      if (saved && ['newest', 'oldest', 'title-asc', 'title-desc'].includes(saved)) {
+        setSortBy(saved as SortOption);
+      }
+    } catch {}
+  }, []);
+
   const handleSelectLabel = (id: string | null) => {
     setSelectedLabel(id);
     if (typeof window === 'undefined') return;
     try {
       if (id) localStorage.setItem(LAST_LABEL_KEY, id);
       else localStorage.removeItem(LAST_LABEL_KEY);
+    } catch {}
+  };
+
+  const handleSortChange = (sort: SortOption) => {
+    setSortBy(sort);
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.setItem(LAST_SORT_KEY, sort);
     } catch {}
   };
 
@@ -134,18 +156,53 @@ export default function DashboardPage() {
   }, [searchInput]);
 
   const filteredNotes = useMemo(() => {
-    const byLabel = selectedLabel
+    let filtered = selectedLabel
       ? notes.filter((n) => n.labels.some((l) => l._id === selectedLabel))
       : notes;
-    if (!searchQuery) return byLabel;
-    const q = searchQuery.toLowerCase();
-    return byLabel.filter((n) => {
-      const title = (n.title || '').toLowerCase();
-      const content = (n.content || '').toLowerCase();
-      if (title.includes(q) || content.includes(q)) return true;
-      return n.labels.some((l) => (l.name || '').toLowerCase().includes(q));
+    
+    // Apply search filter
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      filtered = filtered.filter((n) => {
+        const title = (n.title || '').toLowerCase();
+        const content = (n.content || '').toLowerCase();
+        if (title.includes(q) || content.includes(q)) return true;
+        return n.labels.some((l) => (l.name || '').toLowerCase().includes(q));
+      });
+    }
+
+    // Apply sorting
+    const sorted = [...filtered].sort((a, b) => {
+      switch (sortBy) {
+        case 'newest':
+          const aDate = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const bDate = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return bDate - aDate; // Newest first
+        case 'oldest':
+          const aDateOld = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const bDateOld = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return aDateOld - bDateOld; // Oldest first
+        case 'title-asc':
+          const aTitle = (a.title || '').toLowerCase();
+          const bTitle = (b.title || '').toLowerCase();
+          if (!aTitle && !bTitle) return 0;
+          if (!aTitle) return 1;
+          if (!bTitle) return -1;
+          return aTitle.localeCompare(bTitle);
+        case 'title-desc':
+          const aTitleDesc = (a.title || '').toLowerCase();
+          const bTitleDesc = (b.title || '').toLowerCase();
+          if (!aTitleDesc && !bTitleDesc) return 0;
+          if (!aTitleDesc) return 1;
+          if (!bTitleDesc) return -1;
+          return bTitleDesc.localeCompare(aTitleDesc);
+        default:
+          return 0;
+      }
     });
-  }, [notes, selectedLabel, searchQuery]);
+
+    return sorted;
+  }, [notes, selectedLabel, searchQuery, sortBy]);
 
   const handleLabelsUpdate = async () => {
     try {
@@ -165,6 +222,7 @@ export default function DashboardPage() {
       />
 
       <LabelFilters labels={labels} selectedLabel={selectedLabel} onSelectLabel={handleSelectLabel} />
+      <SortSelector sortBy={sortBy} onSortChange={handleSortChange} />
 
       {loading ? (
         <div className="flex justify-center items-center h-64">
