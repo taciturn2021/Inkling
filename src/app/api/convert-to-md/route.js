@@ -12,7 +12,7 @@ export async function POST(req) {
       return new NextResponse('Text is required', { status: 400 });
     }
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' });
 
     const prompt = `Convert the following text into clean GitHub Flavored Markdown (GFM) for a renderer that uses remark-gfm and rehype-katex (KaTeX).
 Rules:

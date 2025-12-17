@@ -69,7 +69,7 @@ Prefer short sections and bullet points. Use math (LaTeX) when applicable.
 Note title: ${note.title || ''}
 Note content (Markdown or text):\n${note.content || ''}`;
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' });
     const parts = [
       { role: 'user', parts: [{ text: systemPrompt }] },
       ...history.map((m) => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] })),
