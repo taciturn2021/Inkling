@@ -144,7 +144,8 @@ export default function NoteEditor({ noteId }: { noteId?: string }) {
       });
 
       if (!res.ok) {
-        setError('Failed to convert to Markdown');
+        const errorData = await res.json().catch(() => ({}));
+        setError(errorData.message || 'Failed to convert to Markdown');
         return;
       }
 

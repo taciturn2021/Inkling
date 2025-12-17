@@ -15,6 +15,10 @@ const UserSchema = new mongoose.Schema({
     enum: ['free', 'premium'],
     default: 'free',
   },
+  geminiApiKey: {
+    type: String,
+    default: '',
+  },
 });
 
 export default mongoose.models.User || mongoose.model('User', UserSchema);

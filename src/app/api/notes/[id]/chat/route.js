@@ -3,9 +3,9 @@ import { verifyToken } from '@/lib/auth';
 import { NextResponse } from 'next/server';
 import Note from '@/models/Note';
 import ChatMessage from '@/models/ChatMessage';
+import User from '@/models/User';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+import { decrypt } from '@/lib/encryption';
 
 export async function GET(req, { params }) {
   await dbConnect();
@@ -47,7 +47,6 @@ export async function POST(req, { params }) {
   await dbConnect();
   const user = await verifyToken();
   if (!user) return new NextResponse('Unauthorized', { status: 401 });
-  if (user.role !== 'premium') return new NextResponse('Forbidden', { status: 403 });
 
   try {
     const { id } = await params;
@@ -61,6 +60,19 @@ export async function POST(req, { params }) {
     // Save user message
     const savedUserMsg = await ChatMessage.create({ user: user.userId, note: id, role: 'user', content });
 
+    // Get user's API key
+    const userDoc = await User.findById(user.userId).select('geminiApiKey').lean();
+    if (!userDoc || !userDoc.geminiApiKey) {
+      // Create a helpful assistant message
+      const assistantMsg = await ChatMessage.create({ 
+        user: user.userId, 
+        note: id, 
+        role: 'assistant', 
+        content: '⚠️ **API Key Not Configured**\n\nTo use the AI chat feature, you need to configure your Gemini API key.\n\n**Steps:**\n1. Click the settings button (⚙️) in the header\n2. Get your free API key from [Google AI Studio](https://aistudio.google.com/app/apikey)\n3. Paste it in the settings and click Save\n4. Test your key to make sure it works\n\nOnce configured, you\'ll be able to chat with AI about your notes!' 
+      });
+      return NextResponse.json([savedUserMsg, assistantMsg]);
+    }
+
     // Build context from note content + recent history
     const history = await ChatMessage.find({ user: user.userId, note: id }).sort({ createdAt: 1 }).lean();
     const systemPrompt = `You are a helpful assistant answering questions about the user's note. Answer concisely.
@@ -69,6 +81,9 @@ Prefer short sections and bullet points. Use math (LaTeX) when applicable.
 Note title: ${note.title || ''}
 Note content (Markdown or text):\n${note.content || ''}`;
 
+    // Decrypt and use user's API key
+    const decryptedApiKey = decrypt(userDoc.geminiApiKey);
+    const genAI = new GoogleGenerativeAI(decryptedApiKey);
     const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' });
     const parts = [
       { role: 'user', parts: [{ text: systemPrompt }] },

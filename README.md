@@ -25,7 +25,6 @@ A personal note-taking application with AI-powered features, built with Next.js 
 
 - Node.js >= 20.0.0
 - MongoDB database
-- Google Gemini API key
 
 ## Environment Variables
 
@@ -34,8 +33,8 @@ Create a `.env.local` file in the root directory with the following variables:
 ```env
 MONGODB_URI=your_mongodb_connection_string
 MONGODB_DB=your_database_name
-GEMINI_API_KEY=your_gemini_api_key
 JWT_SECRET=your_jwt_secret_key
+ENCRYPTION_KEY=your_64_character_hex_encryption_key
 PUBLIC_BASE_URL=http://localhost:3000
 ALLOW_REGISTRATION=true
 ```
@@ -44,10 +43,12 @@ ALLOW_REGISTRATION=true
 
 - `MONGODB_URI`: Your MongoDB connection string
 - `MONGODB_DB`: The name of your MongoDB database
-- `GEMINI_API_KEY`: Your Google Gemini API key for AI features
 - `JWT_SECRET`: Secret key for JWT token generation (use a strong random string)
+- `ENCRYPTION_KEY`: 64-character hex string for encrypting user API keys (generate with: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`)
 - `PUBLIC_BASE_URL`: The base URL of your application
 - `ALLOW_REGISTRATION`: Set to `true` to allow new user registrations, `false` to disable
+
+**Note**: As of the latest update, users provide their own Gemini API keys through the settings interface. The `GEMINI_API_KEY` environment variable is no longer required.
 
 ## Installation
 
