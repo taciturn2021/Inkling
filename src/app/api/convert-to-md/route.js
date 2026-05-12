@@ -3,7 +3,7 @@ import dbConnect from '@/lib/db';
 import { verifyToken } from '@/lib/auth';
 import User from '@/models/User';
 import { decrypt } from '@/lib/encryption';
-import { generateGroqChatCompletion } from '@/lib/groq';
+import { generateGroqChatCompletion, isGroqAuthError } from '@/lib/groq';
 
 export async function POST(req) {
   await dbConnect();
@@ -55,6 +55,12 @@ ${text}`;
 
   } catch (error) {
     console.error('AI conversion error:', error);
+    if (isGroqAuthError(error)) {
+      return NextResponse.json({
+        error: 'Invalid API Key',
+        message: 'Your saved Groq API key is invalid. Add a valid Groq API key in settings.',
+      }, { status: 400 });
+    }
     return new NextResponse('Internal Server Error', { status: 500 });
   }
 }

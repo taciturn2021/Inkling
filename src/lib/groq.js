@@ -14,3 +14,7 @@ export async function generateGroqChatCompletion(apiKey, messages, options = {})
 
   return completion.choices?.[0]?.message?.content?.trim() || '';
 }
+
+export function isGroqAuthError(error) {
+  return error?.status === 401 || error?.error?.code === 'invalid_api_key';
+}

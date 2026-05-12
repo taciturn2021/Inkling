@@ -5,7 +5,7 @@ import Note from '@/models/Note';
 import ChatMessage from '@/models/ChatMessage';
 import User from '@/models/User';
 import { decrypt } from '@/lib/encryption';
-import { generateGroqChatCompletion } from '@/lib/groq';
+import { generateGroqChatCompletion, isGroqAuthError } from '@/lib/groq';
 
 export async function GET(req, { params }) {
   await dbConnect();
@@ -95,6 +95,12 @@ Note content (Markdown or text):\n${note.content || ''}`;
     return NextResponse.json([savedUserMsg, savedAssistant]);
   } catch (e) {
     console.error('Chat POST error:', e);
+    if (isGroqAuthError(e)) {
+      return NextResponse.json({
+        error: 'Invalid API Key',
+        message: 'Your saved Groq API key is invalid. Add a valid Groq API key in settings.',
+      }, { status: 400 });
+    }
     return new NextResponse('Internal Server Error', { status: 500 });
   }
 }
