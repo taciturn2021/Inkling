@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { generateGroqChatCompletion } from '@/lib/groq';
+import { generateGroqChatCompletion, groqErrorDetails, isGroqApiError } from '@/lib/groq';
 
 export async function POST(req) {
   try {
@@ -22,6 +22,14 @@ export async function POST(req) {
       });
     } catch (apiError) {
       console.error('API key test failed:', apiError);
+      if (isGroqApiError(apiError)) {
+        const { body } = groqErrorDetails(apiError);
+        return NextResponse.json({
+          valid: false,
+          message: body.message,
+          error: body.error,
+        }, { status: 400 });
+      }
       return NextResponse.json({ 
         valid: false, 
         message: 'API key is invalid or has insufficient permissions',
@@ -33,4 +41,3 @@ export async function POST(req) {
     return new NextResponse('Internal Server Error', { status: 500 });
   }
 }
-
