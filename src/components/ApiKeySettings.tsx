@@ -183,25 +183,25 @@ export default function ApiKeySettings({ isOpen, onClose }: ApiKeySettingsProps)
 
           <div>
             <label htmlFor="apiKey" className="block text-sm font-medium text-gray-300 mb-2">
-              Gemini API Key
+              Groq API Key
             </label>
             <input
               id="apiKey"
               type="password"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
-              placeholder={hasKey ? 'Enter new API key to update' : 'Enter your Gemini API key'}
+              placeholder={hasKey ? 'Enter new API key to update' : 'Enter your Groq API key'}
               className="w-full bg-gray-800 border border-gray-700 text-gray-100 text-sm px-3 py-2 rounded-lg outline-none focus:border-blue-500 placeholder-gray-500"
             />
             <p className="text-xs text-gray-500 mt-1">
               Get your API key from{' '}
               <a
-                href="https://aistudio.google.com/app/apikey"
+                href="https://console.groq.com/keys"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-blue-400 hover:text-blue-300 underline"
               >
-                Google AI Studio
+                Groq Console
               </a>
             </p>
           </div>

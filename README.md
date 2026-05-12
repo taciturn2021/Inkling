@@ -8,7 +8,7 @@ A personal note-taking application with AI-powered features, built with Next.js 
 
 - **Smart Markdown Conversion**: Automatically converts any text input into beautifully formatted Markdown for enhanced readability
 - **Mobile-First Interface**: Optimized user experience designed specifically for mobile devices
-- **AI-Powered Chat**: Each note comes with its own personal chatbot powered by Google's Gemini AI, allowing you to ask questions about your notes and get instant answers
+- **AI-Powered Chat**: Each note comes with its own personal chatbot powered by Groq, allowing you to ask questions about your notes and get instant answers
 - **Rich Text Rendering**: Full support for mathematical equations (via KaTeX), GitHub Flavored Markdown, and more
 - **Secure Authentication**: Built-in user authentication with JWT tokens and bcrypt password hashing
 - **Offline Support**: IndexedDB integration for local data persistence
@@ -18,7 +18,7 @@ A personal note-taking application with AI-powered features, built with Next.js 
 
 - **Framework**: Next.js 
 - **Database**: MongoDB
-- **AI**: Google Generative AI (Gemini)
+- **AI**: Groq
 - **Markdown**: react-markdown with plugins for GFM, math rendering, and syntax highlighting
 
 ## Prerequisites
@@ -48,7 +48,7 @@ ALLOW_REGISTRATION=true
 - `PUBLIC_BASE_URL`: The base URL of your application
 - `ALLOW_REGISTRATION`: Set to `true` to allow new user registrations, `false` to disable
 
-**Note**: As of the latest update, users provide their own Gemini API keys through the settings interface. The `GEMINI_API_KEY` environment variable is no longer required.
+**Note**: Users provide their own Groq API keys through the settings interface. The app does not require a server-side AI provider API key.
 
 ## Installation
 

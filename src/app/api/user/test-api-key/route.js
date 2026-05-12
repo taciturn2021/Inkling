@@ -1,5 +1,5 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { NextResponse } from 'next/server';
+import { generateGroqChatCompletion } from '@/lib/groq';
 
 export async function POST(req) {
   try {
@@ -10,17 +10,11 @@ export async function POST(req) {
       return new NextResponse('API key is required', { status: 400 });
     }
 
-    // Try to initialize and list models
-    const genAI = new GoogleGenerativeAI(apiKey);
-    
     // Try a simple operation to test the key
     try {
-      const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' });
-      
-      // Make a minimal test request
-      const result = await model.generateContent('Hi');
-      const response = await result.response;
-      await response.text();
+      await generateGroqChatCompletion(apiKey, [
+        { role: 'user', content: 'Hi' },
+      ], { maxCompletionTokens: 16 });
       
       return NextResponse.json({ 
         valid: true, 

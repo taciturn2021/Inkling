@@ -4,8 +4,8 @@ import { NextResponse } from 'next/server';
 import Note from '@/models/Note';
 import ChatMessage from '@/models/ChatMessage';
 import User from '@/models/User';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { decrypt } from '@/lib/encryption';
+import { generateGroqChatCompletion } from '@/lib/groq';
 
 export async function GET(req, { params }) {
   await dbConnect();
@@ -61,14 +61,14 @@ export async function POST(req, { params }) {
     const savedUserMsg = await ChatMessage.create({ user: user.userId, note: id, role: 'user', content });
 
     // Get user's API key
-    const userDoc = await User.findById(user.userId).select('geminiApiKey').lean();
-    if (!userDoc || !userDoc.geminiApiKey) {
+    const userDoc = await User.findById(user.userId).select('groqApiKey').lean();
+    if (!userDoc || !userDoc.groqApiKey) {
       // Create a helpful assistant message
       const assistantMsg = await ChatMessage.create({ 
         user: user.userId, 
         note: id, 
         role: 'assistant', 
-        content: '⚠️ **API Key Not Configured**\n\nTo use the AI chat feature, you need to configure your Gemini API key.\n\n**Steps:**\n1. Click the settings button (⚙️) in the header\n2. Get your free API key from [Google AI Studio](https://aistudio.google.com/app/apikey)\n3. Paste it in the settings and click Save\n4. Test your key to make sure it works\n\nOnce configured, you\'ll be able to chat with AI about your notes!' 
+        content: '⚠️ **API Key Not Configured**\n\nTo use the AI chat feature, you need to configure your Groq API key.\n\n**Steps:**\n1. Click the settings button (⚙️) in the header\n2. Get your API key from [Groq Console](https://console.groq.com/keys)\n3. Paste it in the settings and click Save\n4. Test your key to make sure it works\n\nOnce configured, you\'ll be able to chat with AI about your notes!' 
       });
       return NextResponse.json([savedUserMsg, assistantMsg]);
     }
@@ -82,17 +82,13 @@ Note title: ${note.title || ''}
 Note content (Markdown or text):\n${note.content || ''}`;
 
     // Decrypt and use user's API key
-    const decryptedApiKey = decrypt(userDoc.geminiApiKey);
-    const genAI = new GoogleGenerativeAI(decryptedApiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' });
-    const parts = [
-      { role: 'user', parts: [{ text: systemPrompt }] },
-      ...history.map((m) => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] })),
+    const decryptedApiKey = decrypt(userDoc.groqApiKey);
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      ...history.map((m) => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content })),
     ];
 
-    const result = await model.generateContent({ contents: parts });
-    const response = await result.response;
-    const answer = await response.text();
+    const answer = await generateGroqChatCompletion(decryptedApiKey, messages);
 
     const savedAssistant = await ChatMessage.create({ user: user.userId, note: id, role: 'assistant', content: answer });
 

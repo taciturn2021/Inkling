@@ -15,7 +15,7 @@ const UserSchema = new mongoose.Schema({
     enum: ['free', 'premium'],
     default: 'free',
   },
-  geminiApiKey: {
+  groqApiKey: {
     type: String,
     default: '',
   },

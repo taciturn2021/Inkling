@@ -1,10 +1,9 @@
-
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/db';
 import { verifyToken } from '@/lib/auth';
 import User from '@/models/User';
 import { decrypt } from '@/lib/encryption';
+import { generateGroqChatCompletion } from '@/lib/groq';
 
 export async function POST(req) {
   await dbConnect();
@@ -19,18 +18,16 @@ export async function POST(req) {
     }
 
     // Get user's API key
-    const userDoc = await User.findById(user.userId).select('geminiApiKey').lean();
-    if (!userDoc || !userDoc.geminiApiKey) {
+    const userDoc = await User.findById(user.userId).select('groqApiKey').lean();
+    if (!userDoc || !userDoc.groqApiKey) {
       return NextResponse.json({ 
         error: 'API Key Not Configured',
-        message: 'Please configure your Gemini API key in settings (⚙️ icon in header) to use AI features.' 
+        message: 'Please configure your Groq API key in settings (⚙️ icon in header) to use AI features.' 
       }, { status: 400 });
     }
 
     // Decrypt and use user's API key
-    const decryptedApiKey = decrypt(userDoc.geminiApiKey);
-    const genAI = new GoogleGenerativeAI(decryptedApiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' });
+    const decryptedApiKey = decrypt(userDoc.groqApiKey);
 
     const prompt = `Convert the following text into clean GitHub Flavored Markdown (GFM) for a renderer that uses remark-gfm and rehype-katex (KaTeX).
 Rules:
@@ -50,9 +47,9 @@ $$ (block math) and ensure a blank line before and after the block.
 Text:
 ${text}`;
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const markdown = await response.text();
+    const markdown = await generateGroqChatCompletion(decryptedApiKey, [
+      { role: 'user', content: prompt },
+    ], { temperature: 0.1 });
 
     return NextResponse.json({ markdown });
 

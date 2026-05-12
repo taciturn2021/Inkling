@@ -4,20 +4,20 @@ import { NextResponse } from 'next/server';
 import User from '@/models/User';
 import { encrypt } from '@/lib/encryption';
 
-export async function GET(req) {
+export async function GET() {
   await dbConnect();
   const user = await verifyToken();
   if (!user) return new NextResponse('Unauthorized', { status: 401 });
 
   try {
-    const userDoc = await User.findById(user.userId).select('geminiApiKey').lean();
+    const userDoc = await User.findById(user.userId).select('groqApiKey').lean();
     if (!userDoc) return new NextResponse('Not found', { status: 404 });
 
     // Return only whether key exists (for security)
     // Note: We don't show masked version since the key is encrypted
     return NextResponse.json({ 
-      hasKey: !!userDoc.geminiApiKey,
-      maskedKey: userDoc.geminiApiKey ? 'API Key configured' : null
+      hasKey: !!userDoc.groqApiKey,
+      maskedKey: userDoc.groqApiKey ? 'API Key configured' : null
     });
   } catch (e) {
     console.error('Get API key error:', e);
@@ -40,7 +40,7 @@ export async function POST(req) {
 
     // Encrypt the API key before storing
     const encryptedKey = encrypt(apiKey.trim());
-    await User.findByIdAndUpdate(user.userId, { geminiApiKey: encryptedKey });
+    await User.findByIdAndUpdate(user.userId, { groqApiKey: encryptedKey });
 
     return NextResponse.json({ success: true });
   } catch (e) {
