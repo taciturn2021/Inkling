@@ -25,11 +25,20 @@ export default function LoginPage() {
       });
 
       if (res.ok) {
-        const next = new URLSearchParams(window.location.search).get('next');
-        router.push(next || '/');
+        const raw = new URLSearchParams(window.location.search).get('next') || '';
+        // Only allow relative paths that start with '/' but not '//' or '\' (protocol-relative / open redirect)
+        const next = /^\/(?![/\\])/.test(raw) ? raw : '/';
+        router.push(next);
       } else {
-        const data = await res.json();
-        setError(data.message || 'Invalid credentials');
+        const text = await res.text();
+        let message = 'Invalid credentials';
+        try {
+          const data = JSON.parse(text);
+          message = data.message || message;
+        } catch {
+          if (text) message = text;
+        }
+        setError(message);
       }
     } catch (error) {
       setError('An unexpected error occurred.');

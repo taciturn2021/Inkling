@@ -7,10 +7,23 @@ import { NextResponse } from 'next/server';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
-// This route can be triggered by an external cron (e.g., Coolify HTTP cron)
-// It deletes images that are not referenced by their note content and older than 2 hours since last seen
+// Triggered by an external cron (e.g., Coolify HTTP cron).
+// Requires: Authorization: Bearer <CRON_SECRET>
 
-export async function POST() {
+export async function POST(req) {
+  const cronSecret = process.env.CRON_SECRET;
+  if (!cronSecret) {
+    console.error('CRON_SECRET is not set — cleanup endpoint is disabled');
+    return new NextResponse('Service unavailable', { status: 503 });
+  }
+
+  const authHeader = req.headers.get('authorization') || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+
+  if (!token || token !== cronSecret) {
+    return new NextResponse('Unauthorized', { status: 401 });
+  }
+
   await dbConnect();
   try {
     const bucket = getGridFsBucket();

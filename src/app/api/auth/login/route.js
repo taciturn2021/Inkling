@@ -3,29 +3,62 @@ import User from '@/models/User';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { NextResponse } from 'next/server';
+import { getClientIp } from '@/lib/clientIp';
+import {
+  checkLoginAllowed,
+  clearLoginAttempts,
+  formatLockoutMessage,
+  lockoutRetryAfterSeconds,
+  recordFailedLogin,
+} from '@/lib/loginRateLimit';
 
 export async function POST(req) {
   await dbConnect();
 
   try {
     const { username, password } = await req.json();
+    const ip = getClientIp(req);
 
     if (!username || !password) {
-      return new NextResponse('Username and password are required', { status: 400 });
+      return NextResponse.json(
+        { message: 'Username and password are required' },
+        { status: 400 }
+      );
+    }
+
+    const lockout = await checkLoginAllowed(ip, username);
+    if (lockout.locked) {
+      const retryAfter = lockoutRetryAfterSeconds(lockout.remainingMs);
+      return NextResponse.json(
+        { message: formatLockoutMessage(lockout.remainingMs) },
+        {
+          status: 429,
+          headers: { 'Retry-After': String(retryAfter) },
+        }
+      );
     }
 
     const user = await User.findOne({ username });
     if (!user) {
-      return new NextResponse('Invalid credentials', { status: 401 });
+      await recordFailedLogin(ip, username, false);
+      return NextResponse.json({ message: 'Invalid credentials' }, { status: 401 });
     }
 
     const isPasswordMatch = await bcrypt.compare(password, user.password);
     if (!isPasswordMatch) {
-      return new NextResponse('Invalid credentials', { status: 401 });
+      await recordFailedLogin(ip, username, true);
+      return NextResponse.json({ message: 'Invalid credentials' }, { status: 401 });
     }
 
+    await clearLoginAttempts(ip, username);
+
     const token = jwt.sign(
-      { userId: user._id, username: user.username, role: user.role || 'free' },
+      {
+        userId: user._id,
+        username: user.username,
+        role: user.role || 'free',
+        tokenVersion: user.tokenVersion ?? 0,
+      },
       process.env.JWT_SECRET,
       { expiresIn: '30d' }
     );
@@ -40,7 +73,6 @@ export async function POST(req) {
     });
 
     return res;
-
   } catch (error) {
     console.error('Login error:', error);
     return new NextResponse('Internal Server Error', { status: 500 });

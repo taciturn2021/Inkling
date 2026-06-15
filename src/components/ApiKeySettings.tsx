@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { createPortal } from 'react-dom';
 
 type ApiKeySettingsProps = {
@@ -9,12 +10,18 @@ type ApiKeySettingsProps = {
 };
 
 export default function ApiKeySettings({ isOpen, onClose }: ApiKeySettingsProps) {
+  const router = useRouter();
   const [apiKey, setApiKey] = useState('');
   const [maskedKey, setMaskedKey] = useState<string | null>(null);
   const [hasKey, setHasKey] = useState(false);
   const [loading, setLoading] = useState(false);
   const [testing, setTesting] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [passwordMessage, setPasswordMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -24,6 +31,10 @@ export default function ApiKeySettings({ isOpen, onClose }: ApiKeySettingsProps)
   useEffect(() => {
     if (isOpen) {
       loadCurrentKey();
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setPasswordMessage(null);
     }
   }, [isOpen]);
 
@@ -117,6 +128,60 @@ export default function ApiKeySettings({ isOpen, onClose }: ApiKeySettingsProps)
     setMessage(null);
   };
 
+  const handleChangePassword = async () => {
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setPasswordMessage({ type: 'error', text: 'Please fill in all password fields' });
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordMessage({ type: 'error', text: 'New passwords do not match' });
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      setPasswordMessage({ type: 'error', text: 'New password must be at least 8 characters' });
+      return;
+    }
+
+    setPasswordLoading(true);
+    setPasswordMessage(null);
+
+    try {
+      const res = await fetch('/api/user/password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+
+      const text = await res.text();
+      let data: { message?: string } = {};
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = { message: text };
+      }
+
+      if (res.ok) {
+        setPasswordMessage({ type: 'success', text: data.message || 'Password changed. Redirecting to login…' });
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+        setTimeout(() => router.push('/login'), 1500);
+      } else {
+        setPasswordMessage({
+          type: 'error',
+          text: data.message || 'Failed to change password',
+        });
+      }
+    } catch (e) {
+      console.error('Change password error:', e);
+      setPasswordMessage({ type: 'error', text: 'An error occurred while changing password' });
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
   const handleRemove = async () => {
     if (!hasKey) {
       setMessage({ type: 'error', text: 'No API key to remove' });
@@ -161,7 +226,7 @@ export default function ApiKeySettings({ isOpen, onClose }: ApiKeySettingsProps)
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-gray-100">API Key Settings</h2>
+          <h2 className="text-xl font-bold text-gray-100">Settings</h2>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-200 transition-colors"
@@ -252,6 +317,73 @@ export default function ApiKeySettings({ isOpen, onClose }: ApiKeySettingsProps)
                 Remove API Key
               </button>
             )}
+          </div>
+
+          <div className="border-t border-gray-800 pt-4 space-y-4">
+            <h3 className="text-sm font-semibold text-gray-200">Change Password</h3>
+
+            <div>
+              <label htmlFor="currentPassword" className="block text-sm font-medium text-gray-300 mb-2">
+                Current Password
+              </label>
+              <input
+                id="currentPassword"
+                type="password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                className="w-full bg-gray-800 border border-gray-700 text-gray-100 text-sm px-3 py-2 rounded-lg outline-none focus:border-blue-500 placeholder-gray-500"
+                autoComplete="current-password"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="newPassword" className="block text-sm font-medium text-gray-300 mb-2">
+                New Password
+              </label>
+              <input
+                id="newPassword"
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="w-full bg-gray-800 border border-gray-700 text-gray-100 text-sm px-3 py-2 rounded-lg outline-none focus:border-blue-500 placeholder-gray-500"
+                autoComplete="new-password"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-300 mb-2">
+                Confirm New Password
+              </label>
+              <input
+                id="confirmPassword"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="w-full bg-gray-800 border border-gray-700 text-gray-100 text-sm px-3 py-2 rounded-lg outline-none focus:border-blue-500 placeholder-gray-500"
+                autoComplete="new-password"
+              />
+              <p className="text-xs text-gray-500 mt-1">Must be at least 8 characters.</p>
+            </div>
+
+            {passwordMessage && (
+              <div
+                className={`p-3 rounded-lg text-sm ${
+                  passwordMessage.type === 'success'
+                    ? 'bg-green-900/30 border border-green-700 text-green-300'
+                    : 'bg-red-900/30 border border-red-700 text-red-300'
+                }`}
+              >
+                {passwordMessage.text}
+              </div>
+            )}
+
+            <button
+              onClick={handleChangePassword}
+              disabled={passwordLoading || !currentPassword || !newPassword || !confirmPassword}
+              className="w-full rounded-lg bg-blue-600 text-white text-sm px-4 py-2 active:scale-[.98] disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {passwordLoading ? 'Changing...' : 'Change Password'}
+            </button>
           </div>
         </div>
       </div>
