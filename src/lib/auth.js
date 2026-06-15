@@ -16,18 +16,16 @@ export async function verifyToken() {
     return null;
   }
 
-  // If the token carries a version, verify it matches the current DB value.
-  // Tokens issued before this field existed (tokenVersion undefined) are
-  // treated as version 0 and will pass until the user's password is changed.
-  if (decoded.tokenVersion !== undefined) {
-    try {
-      await dbConnect();
-      const user = await User.findById(decoded.userId).select('tokenVersion').lean();
-      if (!user) return null;
-      if ((user.tokenVersion ?? 0) !== decoded.tokenVersion) return null;
-    } catch {
-      return null;
-    }
+  // Always verify the token's version against the DB. A missing claim is
+  // treated as version 0, so legacy tokens are revoked once tokenVersion is
+  // bumped (e.g. on password change).
+  try {
+    await dbConnect();
+    const user = await User.findById(decoded.userId).select('tokenVersion').lean();
+    if (!user) return null;
+    if ((user.tokenVersion ?? 0) !== (decoded.tokenVersion ?? 0)) return null;
+  } catch {
+    return null;
   }
 
   return decoded;
