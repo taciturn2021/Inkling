@@ -7,6 +7,7 @@ export default function ShareToggle({ id }: { id: string }) {
   const [shared, setShared] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     let mounted = true;
@@ -21,6 +22,7 @@ export default function ShareToggle({ id }: { id: string }) {
     if (shared === null) return;
     try {
       setBusy(true);
+      setError('');
       const res = await fetch(`/api/notes/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -29,6 +31,8 @@ export default function ShareToggle({ id }: { id: string }) {
       if (!res.ok) throw new Error('Failed to update share state');
       await refreshNotesFromServer();
       setShared((s) => !s);
+    } catch {
+      setError('Could not update sharing right now.');
     } finally {
       setBusy(false);
     }
@@ -48,18 +52,19 @@ export default function ShareToggle({ id }: { id: string }) {
       <button
         onClick={toggleShare}
         disabled={busy || shared === null}
-        className="rounded-lg bg-gray-800 border border-gray-700 text-gray-100 text-sm px-3 py-2 active:scale-[.98] disabled:opacity-60"
+        className="rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-100 active:scale-[.98] disabled:opacity-60"
       >
         {busy ? 'Working…' : shared ? 'Unshare' : 'Share'}
       </button>
       {shared && (
         <button
           onClick={copyLink}
-          className="rounded-lg bg-blue-600 text-white text-sm px-3 py-2 active:scale-[.98]"
+          className="rounded-xl bg-white px-3 py-2 text-sm text-slate-950 active:scale-[.98]"
         >
           {copied ? 'Copied!' : 'Copy link'}
         </button>
       )}
+      {error && <span className="max-w-32 text-xs text-rose-300" role="alert">{error}</span>}
     </div>
   );
 }

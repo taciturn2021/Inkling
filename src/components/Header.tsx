@@ -20,10 +20,16 @@ export default function Header({ onManageLabels, onRefresh, refreshing, searchTe
   const router = useRouter();
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [apiKeySettingsOpen, setApiKeySettingsOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   const handleLogout = async () => {
-    await fetch('/api/auth/logout', { method: 'POST' });
-    router.push('/login');
+    setLoggingOut(true);
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      router.push('/login');
+    } finally {
+      setLoggingOut(false);
+    }
   };
 
   useEffect(() => {
@@ -36,15 +42,18 @@ export default function Header({ onManageLabels, onRefresh, refreshing, searchTe
   }, [mobileSearchOpen]);
 
   return (
-    <header className="sticky top-0 z-20 bg-gray-900/80 backdrop-blur supports-backdrop-filter:bg-gray-900/60 border-b border-gray-800">
-      <div className="px-4 py-3 flex items-center gap-3">
+    <header className="sticky top-0 z-20 border-b border-slate-800 bg-slate-900/90 backdrop-blur supports-backdrop-filter:bg-slate-900/75">
+      <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-4 py-3 sm:flex-nowrap sm:px-6">
         <div className="flex items-center gap-2 flex-shrink-0">
-          <h1 className="text-lg font-bold">Notes</h1>
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-300">Inkling</p>
+            <h1 className="text-lg font-bold tracking-tight">Your notes</h1>
+          </div>
           {/* Mobile search button */}
           <button
             aria-label="Search"
             onClick={() => setMobileSearchOpen((v) => !v)}
-            className="sm:hidden rounded-lg bg-gray-800 border border-gray-700 text-gray-100 p-2 active:scale-[.98]"
+            className="rounded-xl border border-slate-700 bg-slate-800 p-2 text-slate-100 active:scale-[.98] sm:hidden"
           >
             {/* Magnifying glass */}
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-gray-200">
@@ -65,7 +74,7 @@ export default function Header({ onManageLabels, onRefresh, refreshing, searchTe
               value={searchTerm}
               onChange={(e) => onSearchChange(e.target.value)}
               placeholder="Search notes…"
-              className="w-full bg-gray-800 border border-gray-700 text-gray-100 text-sm pl-9 pr-8 py-2 rounded-lg outline-none focus:border-blue-500 placeholder-gray-500"
+              className="w-full rounded-xl border border-slate-700 bg-slate-800 py-2.5 pl-9 pr-8 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-white"
             />
             {searchTerm && (
               <button
@@ -85,7 +94,8 @@ export default function Header({ onManageLabels, onRefresh, refreshing, searchTe
           {onRefresh && (
             <button
               onClick={onRefresh}
-              className="rounded-lg bg-gray-800 border border-gray-700 text-gray-100 text-sm px-3 py-2 active:scale-[.98]"
+              className="rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-100 active:scale-[.98] disabled:opacity-60"
+              disabled={refreshing}
             >
               {refreshing ? 'Refreshing…' : 'Refresh'}
             </button>
@@ -100,13 +110,13 @@ export default function Header({ onManageLabels, onRefresh, refreshing, searchTe
           )}
           <button
             onClick={onManageLabels}
-            className="rounded-lg bg-blue-600 text-white text-sm px-3 py-2 active:scale-[.98]"
+            className="rounded-xl bg-white px-3 py-2 text-sm font-medium text-slate-950 shadow-lg shadow-black/30 active:scale-[.98]"
           >
             Labels
           </button>
           <button
             onClick={() => setApiKeySettingsOpen(true)}
-            className="rounded-lg bg-purple-600 text-white text-sm px-3 py-2 active:scale-[.98]"
+            className="rounded-xl bg-slate-800 px-3 py-2 text-sm text-white ring-1 ring-slate-700 active:scale-[.98]"
             aria-label="Settings"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="inline-block">
@@ -116,9 +126,10 @@ export default function Header({ onManageLabels, onRefresh, refreshing, searchTe
           </button>
           <button
             onClick={handleLogout}
-            className="rounded-lg bg-red-600 text-white text-sm px-3 py-2 active:scale-[.98]"
+            disabled={loggingOut}
+            className="rounded-xl border border-rose-900/60 bg-rose-950/50 px-3 py-2 text-sm text-rose-200 active:scale-[.98] disabled:opacity-60"
           >
-            Logout
+            {loggingOut ? 'Leaving…' : 'Log out'}
           </button>
         </div>
       </div>
@@ -127,7 +138,7 @@ export default function Header({ onManageLabels, onRefresh, refreshing, searchTe
 
       {/* Mobile search input */}
       {mobileSearchOpen && (
-        <div className="sm:hidden px-4 pb-3">
+        <div className="px-4 pb-3 sm:hidden">
           <div className="relative">
             <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -139,7 +150,7 @@ export default function Header({ onManageLabels, onRefresh, refreshing, searchTe
               value={searchTerm}
               onChange={(e) => onSearchChange(e.target.value)}
               placeholder="Search notes…"
-              className="w-full bg-gray-800 border border-gray-700 text-gray-100 text-sm pl-9 pr-8 py-2 rounded-lg outline-none focus:border-blue-500 placeholder-gray-500"
+              className="w-full rounded-xl border border-slate-700 bg-slate-800 py-2.5 pl-9 pr-8 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-white"
             />
             {searchTerm && (
               <button

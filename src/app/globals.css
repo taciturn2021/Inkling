@@ -2,8 +2,14 @@
 @plugin "@tailwindcss/typography";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #0f172a;
+  --foreground: #f8fafc;
+  --inkling-surface: #1e293b;
+  --inkling-elevated: #334155;
+  --inkling-accent: #f8fafc;
+  --inkling-accent-hover: #ffffff;
+  --inkling-muted: #94a3b8;
+  --inkling-border: #475569;
 }
 
 @theme inline {
@@ -13,21 +19,57 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  min-width: 320px;
 }
 
 html {
   scroll-behavior: smooth;
+  background: var(--background);
+}
+
+button,
+a,
+input,
+textarea,
+select {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--inkling-accent-hover);
+  outline-offset: 2px;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+/* Keep rich note content inside the viewport on small screens. */
+.note-content,
+.note-content * {
+  max-width: 100%;
+}
+
+.note-content pre,
+.note-content table {
+  max-width: 100%;
+}
+
+.note-content pre {
+  overflow-x: auto;
+}
+
+.note-content img {
+  height: auto;
+  object-fit: contain;
 }
 
 /* Hide scrollbar while maintaining scroll functionality */

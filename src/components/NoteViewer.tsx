@@ -36,11 +36,11 @@ export default function NoteViewer({ id }: { id: string }) {
     return () => { mounted = false; };
   }, [id]);
 
-  if (loading) return <div className="px-4 py-6 text-gray-400">Loading…</div>;
-  if (error) return <div className="px-4 py-6 text-red-500">{error}</div>;
+  if (loading) return <div className="mx-auto max-w-4xl px-4 py-8"><div className="h-5 w-1/3 animate-pulse rounded bg-slate-800" /><div className="mt-4 h-40 animate-pulse rounded-2xl bg-slate-800/70" /></div>;
+  if (error) return <div className="mx-auto max-w-4xl px-4 py-8 text-rose-300" role="alert">{error}</div>;
   if (!note)
     return (
-      <div className="px-4 py-6 text-gray-400">
+      <div className="px-4 py-6 text-slate-400">
         Note not in local cache.
         <div className="mt-3">
           <button
@@ -54,7 +54,7 @@ export default function NoteViewer({ id }: { id: string }) {
                 setLoading(false);
               }
             }}
-            className="rounded-lg bg-blue-600 text-white text-sm px-3 py-2 active:scale-[.98]"
+            className="rounded-xl bg-white px-3 py-2 text-sm text-slate-950 active:scale-[.98]"
           >
             Refresh from server
           </button>
@@ -127,9 +127,9 @@ export default function NoteViewer({ id }: { id: string }) {
   } as any;
 
   return (
-    <article className="container mx-auto px-4 py-5 prose prose-invert prose-sm sm:prose-base lg:prose-lg max-w-none
-      prose-headings:scroll-mt-24 prose-a:text-blue-400 prose-a:no-underline hover:prose-a:underline
-      prose-img:rounded-lg prose-pre:bg-gray-900/60 prose-code:bg-gray-800/60 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded">
+    <article className="note-content container mx-auto max-w-4xl px-4 py-6 prose prose-invert prose-sm sm:px-6 sm:py-8 sm:prose-base lg:prose-lg
+      prose-headings:scroll-mt-24 prose-headings:text-slate-100 prose-a:text-white prose-a:no-underline hover:prose-a:underline
+      prose-img:rounded-2xl prose-pre:bg-slate-950/70 prose-code:bg-slate-800/80 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded">
       {note.format === 'md' ? (
         <ReactMarkdown
           remarkPlugins={[remarkGfm, remarkMath]}

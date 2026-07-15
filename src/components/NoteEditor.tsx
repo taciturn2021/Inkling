@@ -20,6 +20,7 @@ export default function NoteEditor({ noteId }: { noteId?: string }) {
   const [error, setError] = useState('');
   const [isConverting, setIsConverting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [progress, setProgress] = useState(0);
   const progressTimer = useRef<NodeJS.Timeout | null>(null);
   const router = useRouter();
@@ -107,7 +108,10 @@ export default function NoteEditor({ noteId }: { noteId?: string }) {
 
   const handleDelete = async () => {
     if (isNew) return;
+    if (!window.confirm('Delete this note? This cannot be undone.')) return;
     try {
+      setIsDeleting(true);
+      setError('');
       const res = await fetch(`/api/notes/${noteIdState}`, { method: 'DELETE' });
       if (res.ok) {
         try {
@@ -124,6 +128,8 @@ export default function NoteEditor({ noteId }: { noteId?: string }) {
       }
     } catch (err) {
       setError('An unexpected error occurred.');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -198,36 +204,36 @@ export default function NoteEditor({ noteId }: { noteId?: string }) {
     return newId;
   }, [isNew, noteIdState, title, content, selectedLabels, format]);
 
-  if (loading) return <p className="px-4 py-6">Loading...</p>;
-  if (error) return <p className="px-4 py-6 text-red-500">{error}</p>;
+  if (loading) return <div className="min-h-dvh bg-slate-900 p-4"><div className="mx-auto h-8 max-w-4xl animate-pulse rounded bg-slate-800" /></div>;
 
   return (
-    <div className="container mx-auto p-4">
+    <div className="min-h-dvh bg-slate-900 px-4 py-5 text-slate-50 sm:px-6 sm:py-8">
+      <div className="mx-auto max-w-4xl">
       {isConverting && (
-        <div className="h-1 w-full bg-gray-800 rounded mb-3 overflow-hidden">
-          <div className="h-full bg-blue-600 transition-all duration-200" style={{ width: `${progress}%` }} />
+        <div className="mb-4 h-1.5 w-full overflow-hidden rounded-full bg-slate-800" role="progressbar" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100}>
+          <div className="h-full bg-white transition-all duration-200" style={{ width: `${progress}%` }} />
         </div>
       )}
-      <div className="flex justify-between items-center mb-4">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <BackButton />
-          <h1 className="text-2xl font-bold">{isNew ? 'New Note' : 'Edit Note'}</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{isNew ? 'New note' : 'Edit note'}</h1>
         </div>
         <div>
           <button
-            disabled={isSaving || isConverting}
+            disabled={isSaving || isConverting || isDeleting}
             onClick={handleSave}
-            className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg mr-2"
+            className="rounded-xl bg-white px-4 py-2 font-semibold text-slate-950 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-50 sm:mr-2"
           >
-            Save
+            {isSaving ? 'Saving…' : 'Save'}
           </button>
           {!isNew && (
             <button
-              disabled={isSaving || isConverting}
+              disabled={isSaving || isConverting || isDeleting}
               onClick={handleDelete}
-              className="bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg"
+              className="rounded-xl border border-rose-800/70 bg-rose-950/60 px-4 py-2 font-semibold text-rose-200 transition hover:bg-rose-900/60 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Delete
+              {isDeleting ? 'Deleting…' : 'Delete'}
             </button>
           )}
         </div>
@@ -238,7 +244,7 @@ export default function NoteEditor({ noteId }: { noteId?: string }) {
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         placeholder="Title"
-        className="w-full bg-gray-800 p-2 rounded-lg mb-4"
+        className="mb-4 w-full rounded-2xl border border-slate-700 bg-slate-800 p-3 text-slate-100 placeholder:text-slate-500 focus:border-white"
       />
 
       <MarkdownEditor
@@ -248,13 +254,15 @@ export default function NoteEditor({ noteId }: { noteId?: string }) {
         ensureNoteId={ensureNoteId}
       />
 
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 text-sm text-gray-400 gap-2">
+      {error && <div className="mb-4 rounded-xl border border-rose-800/70 bg-rose-950/40 px-4 py-3 text-sm text-rose-200" role="alert">{error}</div>}
+
+      <div className="mb-5 flex flex-col gap-3 text-sm text-slate-400 sm:flex-row sm:items-center sm:justify-between">
         <span>Markdown only. Use the button or paste an image to embed.</span>
         <div className="flex flex-col items-end sm:items-center gap-1">
           <button
             onClick={handleConvertAndSave}
             disabled={isConverting || isSaving}
-            className="bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white font-semibold px-3 py-1.5 rounded"
+            className="rounded-xl bg-slate-700 px-3 py-2 font-semibold text-white transition hover:bg-slate-600 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isConverting ? 'Converting…' : 'Convert & Save' }
           </button>
@@ -263,14 +271,14 @@ export default function NoteEditor({ noteId }: { noteId?: string }) {
       </div>
 
       <div className="mb-4">
-        <h3 className="font-bold mb-2">Labels</h3>
+        <h3 className="mb-2 font-bold text-slate-200">Labels</h3>
         <div className="flex flex-wrap">
           {labels.map((label) => (
             <button
               key={label._id}
               onClick={() => handleLabelChange(label._id)}
               style={{ backgroundColor: selectedLabels.includes(label._id) ? label.color : '' }}
-              className={`px-3 py-1 rounded-full text-sm mr-2 mb-2 ${selectedLabels.includes(label._id) ? 'text-white' : 'text-gray-300'}`}
+              className={`mb-2 mr-2 rounded-full px-3 py-2 text-sm ${selectedLabels.includes(label._id) ? 'text-white' : 'border border-slate-700 bg-slate-800 text-slate-300'}`}
             >
               {label.name}
             </button>
@@ -279,6 +287,7 @@ export default function NoteEditor({ noteId }: { noteId?: string }) {
       </div>
 
       {/* Removed duplicate bottom Submit button to avoid confusion */}
+      </div>
     </div>
   );
 }

@@ -32,11 +32,13 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [isLabelManagerOpen, setIsLabelManagerOpen] = useState<boolean>(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [refreshError, setRefreshError] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
   const refreshNow = async (updateUi = true) => {
     try {
+      setRefreshError('');
       setRefreshing(true);
       const [freshNotes, freshLabels] = await Promise.all([
         refreshNotesFromServer(),
@@ -48,6 +50,7 @@ export default function DashboardPage() {
       }
     } catch (e) {
       console.error('Refresh failed', e);
+      setRefreshError('Could not sync right now. Your cached notes are still available.');
     } finally {
       setRefreshing(false);
     }
@@ -212,7 +215,7 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
+    <div className="min-h-screen bg-slate-900 text-slate-50">
       <Header
         onManageLabels={() => setIsLabelManagerOpen(true)}
         onRefresh={() => refreshNow(true)}
@@ -224,23 +227,32 @@ export default function DashboardPage() {
       <LabelFilters labels={labels} selectedLabel={selectedLabel} onSelectLabel={handleSelectLabel} />
       <SortSelector sortBy={sortBy} onSortChange={handleSortChange} />
 
+      {refreshError && (
+        <div className="mx-4 mt-4 rounded-xl border border-amber-800/70 bg-amber-950/40 px-4 py-3 text-sm text-amber-200" role="status">
+          {refreshError}
+        </div>
+      )}
+
       {loading ? (
-        <div className="flex justify-center items-center h-64">
-          <p>Loading...</p>
+        <div className="px-4 pb-24 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6" aria-label="Loading notes">
+          {[1, 2, 3].map((item) => (
+            <div key={item} className="h-28 animate-pulse rounded-2xl border border-slate-700 bg-slate-800/80" />
+          ))}
         </div>
       ) : filteredNotes.length > 0 ? (
         <NoteList notes={filteredNotes} />
       ) : (
-        <div className="text-center py-16">
+        <div className="mx-auto max-w-md px-6 py-20 text-center">
           {notes.length === 0 ? (
             <>
-              <h2 className="text-2xl font-semibold mb-4">Welcome to your notes!</h2>
-              <p className="text-gray-400">You don't have any notes yet. Click the '+' button to create your first note.</p>
+              <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-white/10 text-3xl text-white">✦</div>
+              <h2 className="mb-3 text-2xl font-semibold tracking-tight">A clear space for your ideas</h2>
+              <p className="text-slate-400">Capture your first thought and build your personal library.</p>
             </>
           ) : (
             <>
-              <h2 className="text-2xl font-semibold mb-2">No results</h2>
-              <p className="text-gray-400">Try a different search or clear filters.</p>
+              <h2 className="mb-2 text-2xl font-semibold">No notes found</h2>
+              <p className="text-slate-400">Try a different search or clear your filters.</p>
             </>
           )}
         </div>

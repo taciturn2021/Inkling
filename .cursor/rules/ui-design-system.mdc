@@ -1,0 +1,40 @@
+---
+description: Mobile-first UI and content-rendering standards for Inkling
+globs: src/**/*.{tsx,css}
+alwaysApply: false
+---
+
+# Inkling UI Standards
+
+Apply these rules to every UI change.
+
+## Mobile first
+
+- Design for narrow phone screens before adding tablet and desktop enhancements.
+- Keep layouts usable at 320px wide; avoid fixed widths that cause horizontal scrolling.
+- Use responsive spacing, wrapping, and stacking for controls, dialogs, cards, and headers.
+- Make touch targets at least 44px where practical, and preserve visible focus states.
+- Test important flows at mobile and desktop widths before considering the UI complete.
+
+## Markdown and rich content safety
+
+- Never let Markdown, code blocks, tables, long URLs, images, or KaTeX math overflow their container.
+- Preserve the existing Markdown, GFM, raw HTML sanitization, syntax, and math-rendering behavior.
+- Use constrained responsive images, horizontal scrolling only for inherently wide content such as tables/code, and wrapping for prose.
+- Check rendered content with long headings, nested lists, wide tables, multiline code, inline math, display math, and missing images.
+- Do not hide or truncate note content merely to solve overflow.
+
+## Color system
+
+Use one Inkling black-and-white color scheme consistently; do not introduce unrelated accent colors.
+
+- App background: `#0f172a` (slate 900)
+- Surface/card: `#1e293b` (slate 800)
+- Elevated surface/input: `#334155` (slate 700)
+- Primary accent/action: `#f8fafc` (slate 50)
+- Primary hover/focus: `#ffffff` (white)
+- Main text: `#f8fafc` (slate 50)
+- Muted text/borders: `#94a3b8` / `#475569`
+- Use grayscale for normal UI states. Semantic success, warning, and error may use accessible tones only when communicating a real status.
+
+Prefer existing design tokens or shared classes over one-off color values. Check contrast for text, controls, disabled states, and focus indicators.

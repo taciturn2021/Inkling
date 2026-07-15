@@ -9,11 +9,13 @@ export default function LoginPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError('');
+    setSubmitting(true);
 
     try {
       const res = await fetch('/api/auth/login', {
@@ -42,15 +44,19 @@ export default function LoginPage() {
       }
     } catch (error) {
       setError('An unexpected error occurred.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
   return (
-    <div className="min-h-dvh bg-gray-900 px-4 py-8 flex items-center">
+    <div className="flex min-h-dvh items-center bg-slate-900 px-4 py-8">
       <div className="w-full max-w-sm mx-auto">
-        <h2 className="text-3xl font-bold mb-6 text-white">Login</h2>
+        <p className="mb-2 text-xs font-semibold uppercase tracking-[0.25em] text-slate-300">Inkling</p>
+        <h2 className="mb-2 text-3xl font-bold tracking-tight text-slate-50">Welcome back</h2>
+        <p className="mb-6 text-sm text-slate-400">Your ideas are waiting for you.</p>
         {error && <p className="text-red-500 mb-4" role="alert">{error}</p>}
-        <form onSubmit={handleSubmit} className="bg-gray-800 p-5 rounded-2xl shadow-lg w-full">
+        <form onSubmit={handleSubmit} className="w-full rounded-2xl border border-slate-700 bg-slate-800/80 p-5 shadow-2xl shadow-slate-950/30">
           <div className="mb-4">
             <label className="block text-gray-300 text-sm mb-2" htmlFor="username">Username</label>
             <input
@@ -58,7 +64,7 @@ export default function LoginPage() {
               id="username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="w-full px-3 py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded-xl border border-slate-600 bg-slate-700 px-3 py-2.5 text-white focus:border-white focus:outline-none"
               autoComplete="username"
               required
             />
@@ -70,16 +76,17 @@ export default function LoginPage() {
               id="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded-xl border border-slate-600 bg-slate-700 px-3 py-2.5 text-white focus:border-white focus:outline-none"
               autoComplete="current-password"
               required
             />
           </div>
           <button
             type="submit"
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            disabled={submitting}
+            className="w-full rounded-xl bg-white py-2.5 font-semibold text-slate-950 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Login
+            {submitting ? 'Signing in…' : 'Sign in'}
           </button>
         </form>
         <p className="mt-4 text-center text-gray-400 text-sm">

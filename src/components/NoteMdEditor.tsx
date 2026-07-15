@@ -77,10 +77,10 @@ export default function NoteMdEditor({
 
   return (
     <div className="mb-4">
-      <div className="flex justify-between items-center mb-2">
-        <div className="text-sm text-gray-400">Markdown editor</div>
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <div className="text-sm font-medium text-slate-300">Markdown editor</div>
         <label className="relative inline-flex items-center gap-2 text-sm">
-          <span className="px-3 py-1 rounded bg-gray-700">{uploading ? 'Uploading…' : 'Upload image'}</span>
+          <span className="rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-slate-200">{uploading ? 'Uploading…' : 'Upload image'}</span>
           <input
             type="file"
             accept="image/*"
@@ -101,7 +101,7 @@ export default function NoteMdEditor({
         onChange={(e) => setContent(e.target.value)}
         onPaste={onPaste}
         placeholder="Write Markdown here… Paste or upload images to embed"
-        className="w-full bg-gray-800 p-2 rounded-lg mb-2 h-64"
+        className="mb-2 min-h-72 w-full resize-y overflow-x-auto rounded-2xl border border-slate-700 bg-slate-800 p-4 font-mono text-sm leading-6 text-slate-100 outline-none placeholder:text-slate-500 focus:border-white"
       />
     </div>
   );

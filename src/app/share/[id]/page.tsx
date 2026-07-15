@@ -27,19 +27,19 @@ export default async function SharedNotePage({ params }: { params: Promise<{ id:
 
   if (!note) {
     return (
-      <div className="min-h-screen bg-gray-900 text-white">
+      <div className="min-h-screen bg-slate-900 text-slate-50">
         <div className="container mx-auto px-4 py-10">
           <h1 className="text-xl font-semibold">This note is not available.</h1>
-          <p className="text-gray-400 mt-2">It may have been unshared or deleted.</p>
+          <p className="mt-2 text-slate-400">It may have been unshared or deleted.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
-      <header className="sticky top-0 z-10 bg-gray-900/80 backdrop-blur border-b border-gray-800">
-        <div className="container mx-auto px-4 py-3">
+    <div className="min-h-screen bg-slate-900 text-slate-50">
+      <header className="sticky top-0 z-10 border-b border-slate-800 bg-slate-900/90 backdrop-blur">
+        <div className="container mx-auto px-4 py-3 sm:px-6">
           <h1 className="text-lg font-bold truncate">{note.title}</h1>
         </div>
       </header>
@@ -60,9 +60,9 @@ export default async function SharedNotePage({ params }: { params: Promise<{ id:
         </div>
       )}
 
-      <article className="container mx-auto px-4 py-5 prose prose-invert prose-sm sm:prose-base lg:prose-lg max-w-none
-        prose-headings:scroll-mt-24 prose-a:text-blue-400 prose-a:no-underline hover:prose-a:underline
-        prose-img:rounded-lg prose-pre:bg-gray-900/60 prose-code:bg-gray-800/60 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded">
+      <article className="note-content container mx-auto max-w-4xl px-4 py-6 prose prose-invert prose-sm sm:px-6 sm:py-8 sm:prose-base lg:prose-lg
+        prose-headings:scroll-mt-24 prose-headings:text-slate-100 prose-a:text-white prose-a:no-underline hover:prose-a:underline
+        prose-img:rounded-2xl prose-pre:bg-slate-950/70 prose-code:bg-slate-800/80 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded">
         {note.format === 'md' ? (
           <ReactMarkdown
             remarkPlugins={[remarkGfm, remarkMath]}
