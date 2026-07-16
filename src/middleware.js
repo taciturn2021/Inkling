@@ -4,7 +4,7 @@ import { jwtVerify } from 'jose';
 export const config = {
   matcher: [
     // Run on app routes so we can protect private pages and log page visits.
-    '/((?!_next/static|_next/image|favicon.ico).*)',
+    '/((?!_next/static|_next/image|favicon.ico|inkling-icon.svg|manifest.webmanifest|serwist/|~offline).*)',
   ],
 };
 

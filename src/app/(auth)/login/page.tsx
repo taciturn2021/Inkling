@@ -4,6 +4,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { setActiveUser } from '@/lib/notesStore';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
@@ -27,6 +28,11 @@ export default function LoginPage() {
       });
 
       if (res.ok) {
+        const data = await res.json();
+        setActiveUser({
+          id: String(data.user.id),
+          username: String(data.user.username),
+        });
         const raw = new URLSearchParams(window.location.search).get('next') || '';
         // Only allow relative paths that start with '/' but not '//' or '\' (protocol-relative / open redirect)
         const next = /^\/(?![/\\])/.test(raw) ? raw : '/';

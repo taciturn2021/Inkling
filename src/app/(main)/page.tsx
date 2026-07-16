@@ -7,14 +7,18 @@ import SortSelector, { type SortOption } from '@/components/SortSelector';
 import NoteList from '@/components/NoteList';
 import FloatingActionButton from '@/components/FloatingActionButton';
 import LabelManager from '@/components/LabelManager';
+import CachedNoteScreen from '@/components/CachedNoteScreen';
 import {
   loadCachedNotes,
-  refreshNotesFromServer,
+  refreshLibraryFromServer,
   getLastUpdated,
   type CachedNote,
   loadCachedLabels,
   refreshLabelsFromServer,
+  establishActiveUser,
+  getOfflineImageStatus,
 } from '@/lib/notesStore';
+import { useOnlineStatus } from '@/lib/useOnlineStatus';
 
 
 
@@ -35,18 +39,23 @@ export default function DashboardPage() {
   const [refreshError, setRefreshError] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeNoteId, setActiveNoteId] = useState<string | null>(null);
+  const [cacheUnavailable, setCacheUnavailable] = useState(false);
+  const online = useOnlineStatus();
 
   const refreshNow = async (updateUi = true) => {
     try {
       setRefreshError('');
       setRefreshing(true);
-      const [freshNotes, freshLabels] = await Promise.all([
-        refreshNotesFromServer(),
-        refreshLabelsFromServer(),
-      ]);
+      const fresh = await refreshLibraryFromServer();
       if (updateUi) {
-        setNotes(freshNotes);
-        setLabels(freshLabels);
+        setNotes(fresh.notes);
+        setLabels(fresh.labels);
+      }
+      if (fresh.images.failed.length > 0) {
+        setRefreshError(
+          `${fresh.images.failed.length} image${fresh.images.failed.length === 1 ? '' : 's'} could not be saved for offline use.`,
+        );
       }
     } catch (e) {
       console.error('Refresh failed', e);
@@ -59,6 +68,7 @@ export default function DashboardPage() {
   const bootstrapFromCache = async () => {
     setLoading(true);
     try {
+      await establishActiveUser();
       const [cachedNotes, cachedLabels] = await Promise.all([
         loadCachedNotes(),
         loadCachedLabels(),
@@ -66,6 +76,12 @@ export default function DashboardPage() {
 
       setNotes(cachedNotes);
       setLabels(cachedLabels);
+      const imageStatus = await getOfflineImageStatus();
+      if (imageStatus?.failed.length) {
+        setRefreshError(
+          `${imageStatus.failed.length} cached image${imageStatus.failed.length === 1 ? '' : 's'} may be unavailable offline.`,
+        );
+      }
 
       // Check if notes were just updated (within last 5 seconds)
       let shouldRefresh = false;
@@ -89,20 +105,22 @@ export default function DashboardPage() {
         // Notes were just updated, refresh from server immediately
         await refreshNow(true);
       } else if (!cachedNotes || cachedNotes.length === 0) {
-        const fresh = await refreshNotesFromServer();
-        setNotes(fresh);
+        const fresh = await refreshLibraryFromServer();
+        setNotes(fresh.notes);
+        setLabels(fresh.labels);
       } else {
         const last = await getLastUpdated();
         const tooOld = !last || Date.now() - last > 10 * 60 * 1000;
         if (tooOld) refreshNow(false);
       }
 
-      if (!cachedLabels || cachedLabels.length === 0) {
+      if (cachedNotes.length > 0 && cachedLabels.length === 0) {
         const freshLabels = await refreshLabelsFromServer();
         setLabels(freshLabels);
       }
     } catch (error) {
       console.error('Bootstrap cache failed', error);
+      setCacheUnavailable(true);
     } finally {
       setLoading(false);
     }
@@ -110,6 +128,16 @@ export default function DashboardPage() {
 
   useEffect(() => {
     bootstrapFromCache();
+  }, []);
+
+  useEffect(() => {
+    const readPath = () => {
+      const match = window.location.pathname.match(/^\/notes\/([a-f\d]{24})\/?$/i);
+      setActiveNoteId(match?.[1] || null);
+    };
+    readPath();
+    window.addEventListener('popstate', readPath);
+    return () => window.removeEventListener('popstate', readPath);
   }, []);
 
   // Restore last selected label when labels are available
@@ -214,15 +242,36 @@ export default function DashboardPage() {
     } catch {}
   };
 
+  const openCachedNote = (id: string) => {
+    window.history.pushState({ inklingNote: id }, '', `/notes/${id}`);
+    setActiveNoteId(id);
+  };
+
+  const closeCachedNote = () => {
+    window.history.replaceState({}, '', '/');
+    setActiveNoteId(null);
+  };
+
+  if (activeNoteId) {
+    return <CachedNoteScreen id={activeNoteId} onBack={closeCachedNote} />;
+  }
+
   return (
     <div className="min-h-screen bg-slate-900 text-slate-50">
       <Header
         onManageLabels={() => setIsLabelManagerOpen(true)}
-        onRefresh={() => refreshNow(true)}
+        onRefresh={online ? () => refreshNow(true) : undefined}
         refreshing={refreshing}
         searchTerm={searchInput}
         onSearchChange={setSearchInput}
+        networkEnabled={online}
       />
+
+      {!online && (
+        <div className="mx-4 mt-4 rounded-xl border border-amber-800/70 bg-amber-950/40 px-4 py-3 text-sm text-amber-200" role="status">
+          You are offline. Downloaded notes and images remain available; changes require a connection.
+        </div>
+      )}
 
       <LabelFilters labels={labels} selectedLabel={selectedLabel} onSelectLabel={handleSelectLabel} />
       <SortSelector sortBy={sortBy} onSortChange={handleSortChange} />
@@ -240,10 +289,15 @@ export default function DashboardPage() {
           ))}
         </div>
       ) : filteredNotes.length > 0 ? (
-        <NoteList notes={filteredNotes} />
+        <NoteList notes={filteredNotes} onOpenNote={openCachedNote} />
       ) : (
         <div className="animate-fade-in-up mx-auto max-w-md px-6 py-20 text-center">
-          {notes.length === 0 ? (
+          {notes.length === 0 && cacheUnavailable ? (
+            <>
+              <h2 className="mb-3 text-2xl font-semibold tracking-tight">No offline notes available</h2>
+              <p className="text-slate-400">Connect to the internet once to download your notes and their images.</p>
+            </>
+          ) : notes.length === 0 ? (
             <>
               <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-white/10 text-3xl text-white">✦</div>
               <h2 className="mb-3 text-2xl font-semibold tracking-tight">A clear space for your ideas</h2>
@@ -258,8 +312,8 @@ export default function DashboardPage() {
         </div>
       )}
 
-      <FloatingActionButton />
-      <LabelManager isOpen={isLabelManagerOpen} onClose={() => setIsLabelManagerOpen(false)} onLabelsUpdate={handleLabelsUpdate} />
+      {online && <FloatingActionButton />}
+      {online && <LabelManager isOpen={isLabelManagerOpen} onClose={() => setIsLabelManagerOpen(false)} onLabelsUpdate={handleLabelsUpdate} />}
     </div>
   );
 }

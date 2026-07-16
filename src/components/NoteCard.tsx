@@ -5,7 +5,13 @@ import { useTransition } from 'react';
 import { useStartNavigating } from './NavigationProvider';
 import type { Note } from './NoteList';
 
-export default function NoteCard({ note }: { note: Note }) {
+export default function NoteCard({
+  note,
+  onOpenNote,
+}: {
+  note: Note;
+  onOpenNote?: (id: string) => void;
+}) {
   const router = useRouter();
   const startNavigating = useStartNavigating();
   const [isPending, startTransition] = useTransition();
@@ -13,6 +19,10 @@ export default function NoteCard({ note }: { note: Note }) {
 
   const openNote = () => {
     if (isPending) return;
+    if (onOpenNote) {
+      onOpenNote(note._id);
+      return;
+    }
     startNavigating();
     startTransition(() => {
       router.push(`/notes/${note._id}`);

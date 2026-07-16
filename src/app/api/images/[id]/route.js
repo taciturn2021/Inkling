@@ -43,7 +43,9 @@ export async function GET(req, { params }) {
 
     const headers = new Headers();
     headers.set('Content-Type', image.contentType);
-    headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+    // Authorization can change when a note is unshared or a user logs out.
+    // The offline client keeps an account-scoped IndexedDB copy instead.
+    headers.set('Cache-Control', 'private, no-store');
 
     return new Response(downloadStream, { headers });
   } catch (error) {

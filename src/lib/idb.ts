@@ -8,7 +8,16 @@ export type CachedNote = {
   format: 'text' | 'md';
   labels: CachedLabel[];
   createdAt?: string;
+  updatedAt?: string;
   shared?: boolean;
+};
+
+export type CachedUser = { id: string; username: string };
+export type ImageSyncStatus = {
+  total: number;
+  available: number;
+  failed: string[];
+  completedAt: number;
 };
 
 export type CachedChatMessage = {
@@ -27,11 +36,53 @@ type DBSchema = {
   chats: CachedChatMessage;
 };
 
-let dbPromise: Promise<IDBPDatabase<any>> | null = null;
+const ACTIVE_USER_KEY = 'inkling:active-user';
+const dbPromises = new Map<string, Promise<IDBPDatabase<any>>>();
+
+function readActiveUser(): CachedUser | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const value = localStorage.getItem(ACTIVE_USER_KEY);
+    if (!value) return null;
+    const parsed = JSON.parse(value) as Partial<CachedUser>;
+    if (!parsed.id || !parsed.username) return null;
+    return { id: String(parsed.id), username: String(parsed.username) };
+  } catch {
+    return null;
+  }
+}
+
+export function getActiveUser(): CachedUser | null {
+  return readActiveUser();
+}
+
+export function setActiveUser(user: CachedUser) {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(
+    ACTIVE_USER_KEY,
+    JSON.stringify({ id: String(user.id), username: String(user.username) }),
+  );
+  // Version 4 and earlier used one unscoped database for every account.
+  // It cannot be attributed safely, so never migrate or render its contents.
+  try {
+    indexedDB.deleteDatabase('notes-local-db');
+  } catch {}
+}
+
+function databaseName(userId: string) {
+  return `inkling-local-${userId.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
+}
 
 export function getDB() {
-  if (!dbPromise) {
-    dbPromise = openDB<any>('notes-local-db', 4, {
+  const user = readActiveUser();
+  if (!user) {
+    return Promise.reject(new Error('No local account is active'));
+  }
+
+  const existing = dbPromises.get(user.id);
+  if (existing) return existing;
+
+  const dbPromise = openDB<any>(databaseName(user.id), 4, {
       upgrade(db) {
         if (!db.objectStoreNames.contains('notes')) {
           const s = db.createObjectStore('notes', { keyPath: '_id' });
@@ -58,8 +109,30 @@ export function getDB() {
         }
       },
     });
-  }
+  dbPromises.set(user.id, dbPromise);
   return dbPromise;
+}
+
+export async function clearActiveUserData() {
+  const user = readActiveUser();
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem(ACTIVE_USER_KEY);
+  if (!user) return;
+
+  const promise = dbPromises.get(user.id);
+  if (promise) {
+    try {
+      (await promise).close();
+    } catch {}
+    dbPromises.delete(user.id);
+  }
+
+  await new Promise<void>((resolve) => {
+    const request = indexedDB.deleteDatabase(databaseName(user.id));
+    request.onsuccess = () => resolve();
+    request.onerror = () => resolve();
+    request.onblocked = () => resolve();
+  });
 }
 
 export async function putNotes(notes: CachedNote[]) {
@@ -93,10 +166,34 @@ export async function clearNotes() {
   await tx.done;
 }
 
+export async function replaceLibrarySnapshot(
+  notes: CachedNote[],
+  labels: CachedLabel[],
+) {
+  const db = await getDB();
+  const tx = db.transaction(['notes', 'labels', 'meta'], 'readwrite');
+  await tx.objectStore('notes').clear();
+  await tx.objectStore('labels').clear();
+  await Promise.all([
+    ...notes.map((note) => tx.objectStore('notes').put(note)),
+    ...labels.map((label) => tx.objectStore('labels').put(label)),
+  ]);
+  await tx.objectStore('meta').put({ key: 'lastUpdated', value: Date.now() });
+  await tx.done;
+}
+
 export async function putLabels(labels: CachedLabel[]) {
   const db = await getDB();
   const tx = db.transaction('labels', 'readwrite');
   await Promise.all(labels.map((l) => tx.store.put(l)));
+  await tx.done;
+}
+
+export async function replaceLabels(labels: CachedLabel[]) {
+  const db = await getDB();
+  const tx = db.transaction('labels', 'readwrite');
+  await tx.store.clear();
+  await Promise.all(labels.map((label) => tx.store.put(label)));
   await tx.done;
 }
 
@@ -132,6 +229,28 @@ export async function getImageBlob(id: string): Promise<{ blob: Blob; contentTyp
 export async function deleteImageBlob(id: string) {
   const db = await getDB();
   try { await db.delete('images', id); } catch {}
+}
+
+export async function getAllImageIds(): Promise<string[]> {
+  const db = await getDB();
+  return (await db.getAllKeys('images')).map(String);
+}
+
+export async function setImageSyncStatus(status: ImageSyncStatus) {
+  await setMeta('imageSyncStatus', status);
+}
+
+export async function getImageSyncStatus(): Promise<ImageSyncStatus | undefined> {
+  return getMeta<ImageSyncStatus>('imageSyncStatus');
+}
+
+export async function requestPersistentStorage(): Promise<boolean> {
+  if (typeof navigator === 'undefined' || !navigator.storage?.persist) return false;
+  try {
+    return await navigator.storage.persist();
+  } catch {
+    return false;
+  }
 }
 
 // Chat history helpers

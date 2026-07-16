@@ -11,11 +11,63 @@ import rehypeAutolinkHeadings from 'rehype-autolink-headings';
 import rehypeKatex from 'rehype-katex';
 // no conditional hooks; keep top-level stable
 import { getImageBlob, putImageBlob } from '@/lib/idb';
+import { useOnlineStatus } from '@/lib/useOnlineStatus';
+
+function CachedImage({ src, alt }: { src?: string; alt?: string }) {
+  const [resolvedSrc, setResolvedSrc] = useState<string | undefined>();
+
+  useEffect(() => {
+    let canceled = false;
+    let objectUrl: string | undefined;
+
+    const resolve = async () => {
+      if (!src) {
+        setResolvedSrc(undefined);
+        return;
+      }
+      const match = src.match(/\/api\/images\/([a-f\d]{24})/i);
+      const id = match?.[1];
+      if (!id) {
+        setResolvedSrc(src);
+        return;
+      }
+
+      try {
+        const cached = await getImageBlob(id);
+        if (cached) {
+          objectUrl = URL.createObjectURL(cached.blob);
+          if (canceled) URL.revokeObjectURL(objectUrl);
+          else setResolvedSrc(objectUrl);
+          return;
+        }
+
+        const res = await fetch(src, { cache: 'no-store' });
+        if (!res.ok) throw new Error('Image unavailable');
+        const blob = await res.blob();
+        await putImageBlob(id, blob, blob.type || 'image/*');
+        objectUrl = URL.createObjectURL(blob);
+        if (canceled) URL.revokeObjectURL(objectUrl);
+        else setResolvedSrc(objectUrl);
+      } catch {
+        if (!canceled) setResolvedSrc(undefined);
+      }
+    };
+
+    void resolve();
+    return () => {
+      canceled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [src]);
+
+  return <img src={resolvedSrc} alt={alt || ''} loading="lazy" decoding="async" />;
+}
 
 export default function NoteViewer({ id }: { id: string }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<any>(null);
+  const online = useOnlineStatus();
 
   useEffect(() => {
     let mounted = true;
@@ -42,7 +94,7 @@ export default function NoteViewer({ id }: { id: string }) {
     return (
       <div className="animate-fade-in-up px-4 py-6 text-slate-400">
         Note not in local cache.
-        <div className="mt-3">
+        {online && <div className="mt-3">
           <button
             onClick={async () => {
               try {
@@ -58,7 +110,7 @@ export default function NoteViewer({ id }: { id: string }) {
           >
             Refresh from server
           </button>
-        </div>
+        </div>}
       </div>
     );
 
@@ -66,40 +118,7 @@ export default function NoteViewer({ id }: { id: string }) {
   const processedContent = note ? String(note.content || '') : '';
 
   const components = {
-    img: (props: any) => {
-      const { src, alt } = props;
-      const [resolvedSrc, setResolvedSrc] = useState<string | undefined>(undefined);
-      useEffect(() => {
-        let canceled = false;
-        (async () => {
-          try {
-            const match = typeof src === 'string' ? src.match(/\/api\/images\/([a-f\d]{24})/i) : null;
-            const id = match && Array.isArray(match) ? match[1] : undefined;
-            if (!id) { setResolvedSrc(typeof src === 'string' ? src : undefined); return; }
-            const cached = await getImageBlob(id).catch(() => undefined);
-            if (cached && !canceled) {
-              const url = URL.createObjectURL(cached.blob);
-              setResolvedSrc(url);
-              return;
-            }
-            if (typeof src === 'string') {
-              // Network fallback, then cache
-              const res = await fetch(src, { cache: 'no-store' });
-              if (!res.ok) { setResolvedSrc(src); return; }
-              const blob = await res.blob();
-              try { await putImageBlob(id, blob, blob.type || 'image/*'); } catch {}
-              if (!canceled) {
-                const url = URL.createObjectURL(blob);
-                setResolvedSrc(url);
-              }
-            }
-          } catch { setResolvedSrc(typeof src === 'string' ? src : undefined); }
-        })();
-        return () => { canceled = true; };
-      }, [src]);
-      // Avoid initial network request by withholding src until resolved
-      return <img src={resolvedSrc || ''} alt={alt} loading="lazy" decoding="async" />;
-    },
+    img: ({ src, alt }: any) => <CachedImage src={typeof src === 'string' ? src : undefined} alt={alt} />,
     table: ({ children }: any) => {
       return (
         <div className="-mx-4 sm:mx-0 overflow-x-auto overscroll-x-contain">

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import ApiKeySettings from './ApiKeySettings';
+import { clearActiveUserData } from '@/lib/notesStore';
 
 type HeaderProps = {
   onManageLabels: () => void;
@@ -12,6 +13,7 @@ type HeaderProps = {
   onSearchChange: (value: string) => void;
   onRefreshChat?: () => void;
   refreshingChat?: boolean;
+  networkEnabled?: boolean;
 };
 
 function IconSearch({ className = '' }: { className?: string }) {
@@ -78,6 +80,7 @@ export default function Header({
   onSearchChange,
   onRefreshChat,
   refreshingChat,
+  networkEnabled = true,
 }: HeaderProps) {
   const router = useRouter();
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
@@ -87,7 +90,8 @@ export default function Header({
   const handleLogout = async () => {
     setLoggingOut(true);
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
+      await fetch('/api/auth/logout', { method: 'POST' }).catch(() => undefined);
+      await clearActiveUserData();
       router.push('/login');
     } finally {
       setLoggingOut(false);
@@ -168,6 +172,7 @@ export default function Header({
 
           <button
             onClick={onManageLabels}
+            disabled={!networkEnabled}
             className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-slate-950 shadow-lg shadow-black/30 active:scale-[.98] sm:h-auto sm:w-auto sm:gap-2 sm:px-3 sm:py-2 sm:text-sm sm:font-medium"
             aria-label="Labels"
           >
@@ -177,6 +182,7 @@ export default function Header({
 
           <button
             onClick={() => setApiKeySettingsOpen(true)}
+            disabled={!networkEnabled}
             className={iconBtn}
             aria-label="Settings"
           >
