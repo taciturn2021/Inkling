@@ -28,7 +28,7 @@ export default async function NoteViewPage({ params }: { params: Promise<{ id: s
   return (
     <div className="animate-fade-in min-h-screen bg-slate-900 text-slate-50">
       <div className="sticky top-0 z-10 border-b border-slate-800 bg-slate-900/90 backdrop-blur">
-        <div className="mx-auto flex max-w-4xl items-center gap-3 px-4 py-3 sm:px-6">
+        <div className="flex items-center gap-3 px-4 py-3 sm:px-6">
           <div className="flex items-center gap-2 flex-shrink-0">
             <BackButton />
             <h1 className="text-lg font-bold truncate max-w-[65vw] sm:max-w-none">Note</h1>

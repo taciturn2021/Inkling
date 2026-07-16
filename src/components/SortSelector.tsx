@@ -47,7 +47,7 @@ export default function SortSelector({ sortBy, onSortChange }: Props) {
   };
 
   return (
-    <div className="mx-auto max-w-7xl border-b border-slate-800 px-4 pb-4 pt-3 sm:px-6">
+    <div className="border-b border-slate-800 px-4 pb-4 pt-3 sm:px-6">
       <div className="relative" ref={dropdownRef}>
         <button
           onClick={() => setIsOpen(!isOpen)}

@@ -62,7 +62,6 @@ export default function ChatBot({ noteId, enabled }: ChatBotProps) {
       setMenuOpen(false);
       return;
     }
-    const id = requestAnimationFrame(() => inputRef.current?.focus());
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setOpen(false);
     };
@@ -70,7 +69,6 @@ export default function ChatBot({ noteId, enabled }: ChatBotProps) {
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
-      cancelAnimationFrame(id);
       document.removeEventListener('keydown', onKeyDown);
       document.body.style.overflow = prevOverflow;
     };

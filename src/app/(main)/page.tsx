@@ -234,7 +234,7 @@ export default function DashboardPage() {
       )}
 
       {loading ? (
-        <div className="px-4 pb-24 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6" aria-label="Loading notes">
+        <div className="grid grid-cols-1 gap-4 px-4 pb-24 pt-4 sm:grid-cols-2 sm:gap-6 sm:pt-5 lg:grid-cols-3" aria-label="Loading notes">
           {[1, 2, 3].map((item) => (
             <div key={item} className="h-28 animate-pulse rounded-2xl border border-slate-700 bg-slate-800/80" />
           ))}

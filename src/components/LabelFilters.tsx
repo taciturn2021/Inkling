@@ -10,7 +10,7 @@ type Props = {
 
 export default function LabelFilters({ labels, selectedLabel, onSelectLabel }: Props) {
   return (
-    <div className="mx-auto max-w-7xl px-4 pt-4 sm:px-6">
+    <div className="px-4 pt-4 sm:px-6">
       <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
         <button
           onClick={() => onSelectLabel(null)}
