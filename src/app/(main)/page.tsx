@@ -242,7 +242,7 @@ export default function DashboardPage() {
       ) : filteredNotes.length > 0 ? (
         <NoteList notes={filteredNotes} />
       ) : (
-        <div className="mx-auto max-w-md px-6 py-20 text-center">
+        <div className="animate-fade-in-up mx-auto max-w-md px-6 py-20 text-center">
           {notes.length === 0 ? (
             <>
               <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-white/10 text-3xl text-white">✦</div>

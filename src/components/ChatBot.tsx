@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
@@ -15,218 +16,105 @@ import {
 
 type ChatBotProps = {
   noteId: string;
-  enabled: boolean; // gate by role externally to avoid any UI trace for free users
+  enabled: boolean;
 };
 
 export default function ChatBot({ noteId, enabled }: ChatBotProps) {
+  const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<CachedChatMessage[] | null>(null);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [bootError, setBootError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [dragging, setDragging] = useState(false);
-  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
-  const [minimized, setMinimized] = useState(false);
-  const [size, setSize] = useState<{ w: number; h: number } | null>(null);
-  const inputRef = useRef<HTMLInputElement | null>(null);
-  const containerRef = useRef<HTMLElement | null>(null);
-  const sizeRef = useRef<{ w: number; h: number }>({ w: 0, h: 0 });
-  const minSizeRef = useRef<{ w: number; h: number } | null>(null);
+  const [mounted, setMounted] = useState(false);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const listRef = useRef<HTMLDivElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
 
-  // Read/Write persisted position
   useEffect(() => {
-    if (!enabled) return;
-    try {
-      const raw = localStorage.getItem('chat:pos');
-      if (raw) {
-        const v = JSON.parse(raw) as { x: number; y: number };
-        setPos(v);
-      }
-      const minRaw = localStorage.getItem('chat:minimized');
-      if (minRaw) setMinimized(minRaw === '1');
-      const sizeRaw = localStorage.getItem('chat:size');
-      if (sizeRaw) {
-        try {
-          const s = JSON.parse(sizeRaw) as { w: number; h: number };
-          setSize(s);
-        } catch {}
-      }
-    } catch {}
-  }, [enabled]);
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (!enabled) return;
-    if (pos) {
-      try { localStorage.setItem('chat:pos', JSON.stringify(pos)); } catch {}
-    }
-  }, [pos, enabled]);
-
-  useEffect(() => {
-    if (!enabled) return;
-    try { localStorage.setItem('chat:minimized', minimized ? '1' : '0'); } catch {}
-  }, [minimized, enabled]);
-
-  // Persist size
-  useEffect(() => {
-    if (!enabled) return;
-    if (size) {
-      try { localStorage.setItem('chat:size', JSON.stringify(size)); } catch {}
-      sizeRef.current = { ...size };
-    }
-  }, [size, enabled]);
-
-  useEffect(() => {
-    if (!enabled) return;
-    let mounted = true;
+    let active = true;
     (async () => {
       try {
         setBootError(null);
-        // Load cached chat
         const cached = await loadCachedChat(noteId);
-        if (!mounted) return;
+        if (!active) return;
         setMessages(cached);
-      } catch (e) {
-        if (!mounted) return;
+      } catch {
+        if (!active) return;
         setBootError('Failed to load chat');
         setMessages([]);
       }
     })();
-    return () => { mounted = false; };
+    return () => {
+      active = false;
+    };
   }, [noteId, enabled]);
 
-  // Measure and set default position near bottom-right once container is rendered
   useEffect(() => {
-    if (!enabled) return;
-    if (pos) return; // already set (restored)
-    const el = containerRef.current;
-    if (!el) return;
-    const compute = () => {
-      const baseW = Math.min(window.innerWidth * 0.92, 300); // reduced min width
-      const baseH = Math.min(window.innerHeight * 0.6, 340); // further reduced min height
-      // Establish minimum size from initial
-      minSizeRef.current = { w: baseW, h: baseH };
-      // Initialize size if not restored
-      if (!size) {
-        sizeRef.current = { w: baseW, h: baseH };
-        setSize({ w: baseW, h: baseH });
-      } else {
-        // Clamp restored size within viewport and at least min size
-        const maxW = Math.max(200, window.innerWidth - 16);
-        const maxH = Math.max(160, window.innerHeight - 16);
-        const clamped = {
-          w: Math.min(Math.max(size.w, baseW), maxW),
-          h: Math.min(Math.max(size.h, baseH), maxH),
-        };
-        sizeRef.current = clamped;
-        // Only set if changed to avoid loops
-        if (clamped.w !== size.w || clamped.h !== size.h) setSize(clamped);
-      }
-      const effW = sizeRef.current.w || baseW;
-      const effH = sizeRef.current.h || baseH;
-      const x = Math.max(8, window.innerWidth - effW - 16);
-      const y = Math.max(8, window.innerHeight - Math.min(el.clientHeight || effH, effH) - 16);
-      setPos({ x, y });
+    if (!open) {
+      setMenuOpen(false);
+      return;
+    }
+    const id = requestAnimationFrame(() => inputRef.current?.focus());
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
     };
-    // wait a frame for layout
-    const id = requestAnimationFrame(compute);
-    return () => cancelAnimationFrame(id);
-  }, [enabled, pos, size]);
+    document.addEventListener('keydown', onKeyDown);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      cancelAnimationFrame(id);
+      document.removeEventListener('keydown', onKeyDown);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [open]);
 
-  // Clamp on resize
   useEffect(() => {
-    if (!enabled) return;
-    const onResize = () => {
-      setPos((prev) => {
-        if (!prev) return prev;
-        const rect = containerRef.current?.getBoundingClientRect();
-        const w = rect?.width ?? Math.min(window.innerWidth * 0.92, 300);
-        const h = rect?.height ?? Math.min(window.innerHeight * 0.6, 340);
-        sizeRef.current = { w, h };
-        return {
-          x: Math.min(Math.max(8, prev.x), Math.max(8, window.innerWidth - w - 8)),
-          y: Math.min(Math.max(8, prev.y), Math.max(8, window.innerHeight - h - 8)),
-        };
-      });
-      // Clamp stored size against viewport and minimums
-      if (size) {
-        const base = minSizeRef.current || { w: Math.min(window.innerWidth * 0.92, 300), h: Math.min(window.innerHeight * 0.6, 340) };
-        const maxW = Math.max(200, window.innerWidth - 16);
-        const maxH = Math.max(160, window.innerHeight - 16);
-        const clamped = {
-          w: Math.min(Math.max(size.w, base.w), maxW),
-          h: Math.min(Math.max(size.h, base.h), maxH),
-        };
-        if (clamped.w !== size.w || clamped.h !== size.h) setSize(clamped);
+    if (!open || !listRef.current) return;
+    listRef.current.scrollTop = listRef.current.scrollHeight;
+  }, [open, messages, sending]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
       }
     };
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, [enabled, size]);
-
-  // Clamp restored position on mount/update to keep window on-screen
-  useEffect(() => {
-    if (!enabled) return;
-    if (!pos) return;
-    const effW = size?.w ?? Math.min(window.innerWidth * 0.92, 300);
-    const effH = size?.h ?? Math.min(window.innerHeight * 0.6, 420);
-    const nx = Math.min(Math.max(8, pos.x), Math.max(8, window.innerWidth - effW - 8));
-    const ny = Math.min(Math.max(8, pos.y), Math.max(8, window.innerHeight - effH - 8));
-    if (nx !== pos.x || ny !== pos.y) setPos({ x: nx, y: ny });
-  }, [enabled, pos, size]);
-
-  // Resize handle drag
-  const onResizePointerDown = (e: React.PointerEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const startX = e.clientX;
-    const startY = e.clientY;
-    const start = sizeRef.current || { w: Math.min(window.innerWidth * 0.92, 300), h: Math.min(window.innerHeight * 0.6, 420) };
-    const minB = minSizeRef.current || { w: start.w, h: start.h };
-    const move = (ev: PointerEvent) => {
-      // Prevent page from scrolling while resizing on touch devices
-      try { ev.preventDefault(); } catch {}
-      const dx = ev.clientX - startX;
-      const dy = ev.clientY - startY;
-      const nextW = start.w + dx;
-      const nextH = start.h + dy;
-      const maxW = Math.max(200, window.innerWidth - 16);
-      const maxH = Math.max(160, window.innerHeight - 16);
-      const clamped = {
-        w: Math.min(Math.max(nextW, minB.w), maxW),
-        h: Math.min(Math.max(nextH, minB.h), maxH),
-      };
-      sizeRef.current = clamped;
-      setSize(clamped);
-      // Keep within viewport on resize
-      setPos((prev) => {
-        if (!prev) return prev;
-        return {
-          x: Math.min(Math.max(8, prev.x), Math.max(8, window.innerWidth - clamped.w - 8)),
-          y: Math.min(Math.max(8, prev.y), Math.max(8, window.innerHeight - clamped.h - 8)),
-        };
-      });
-    };
-    const up = () => {
-      window.removeEventListener('pointermove', move);
-      window.removeEventListener('pointerup', up);
-    };
-    window.addEventListener('pointermove', move);
-    window.addEventListener('pointerup', up);
-    (e.target as Element).setPointerCapture?.(e.pointerId);
-  };
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, [menuOpen]);
 
   const handleRefresh = async () => {
-    if (!enabled) return;
+    setMenuOpen(false);
     setRefreshing(true);
     setActionError(null);
     try {
       const fresh = await refreshChatFromServer(noteId);
       setMessages(fresh);
-    } catch (e) {
+    } catch {
       setActionError('Could not refresh chat.');
     } finally {
       setRefreshing(false);
+    }
+  };
+
+  const handleClear = async () => {
+    setMenuOpen(false);
+    if (!window.confirm('Clear this chat history?')) return;
+    try {
+      setActionError(null);
+      await clearChatHistory(noteId);
+      setMessages([]);
+    } catch {
+      setActionError('Could not clear chat history.');
     }
   };
 
@@ -248,133 +136,134 @@ export default function ChatBot({ noteId, enabled }: ChatBotProps) {
     }
   };
 
-  const handleClear = async () => {
-    if (!enabled) return;
-    if (!window.confirm('Clear this chat history?')) return;
-    try {
-      setActionError(null);
-      await clearChatHistory(noteId);
-      setMessages([]);
-    } catch {
-      setActionError('Could not clear chat history.');
+  const onComposerKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      void handleSend();
     }
   };
 
-  if (!enabled) return null;
+  if (!enabled || !mounted) return null;
 
-  const onPointerDown = (e: React.PointerEvent) => {
-    if (!containerRef.current) return;
-    const el = containerRef.current;
-    const startX = e.clientX;
-    const startY = e.clientY;
-    const startPos = pos || { x: 12, y: 12 };
-    setDragging(true);
-    (e.target as Element).setPointerCapture?.(e.pointerId);
-    const move = (ev: PointerEvent) => {
-      const dx = ev.clientX - startX;
-      const dy = ev.clientY - startY;
-      const rect = containerRef.current?.getBoundingClientRect();
-      const w = rect?.width ?? Math.min(window.innerWidth * 0.92, 352);
-      const h = rect?.height ?? Math.min(window.innerHeight * 0.6, 480);
-      sizeRef.current = { w, h };
-      const nx = Math.min(Math.max(8, startPos.x + dx), Math.max(8, window.innerWidth - w - 8));
-      const ny = Math.min(Math.max(8, startPos.y + dy), Math.max(8, window.innerHeight - h - 8));
-      setPos({ x: nx, y: ny });
-    };
-    const up = () => {
-      setDragging(false);
-      window.removeEventListener('pointermove', move);
-      window.removeEventListener('pointerup', up);
-    };
-    window.addEventListener('pointermove', move);
-    window.addEventListener('pointerup', up);
-  };
-
-  if (minimized) {
-    return (
+  const panel = open ? (
+    <div className="fixed inset-0 z-40 flex items-end justify-end sm:items-stretch" role="dialog" aria-modal="true" aria-label="Ask AI about this note">
       <button
-        aria-label="Open AI chat"
-        className="fixed bottom-4 right-4 z-20 h-12 w-12 rounded-full bg-white text-slate-950 shadow-lg shadow-black/30 active:scale-[.98] sm:bottom-6 sm:right-6"
-        onClick={() => setMinimized(false)}
-      >
-        AI
-      </button>
-    );
-  }
+        type="button"
+        aria-label="Close AI chat"
+        className="absolute inset-0 bg-black/55 animate-fade-in"
+        onClick={() => setOpen(false)}
+      />
 
-  return (
-    <section
-      ref={containerRef as any}
-      className="fixed z-20"
-      style={{
-        left: pos ? `${pos.x}px` : undefined,
-        top: pos ? `${pos.y}px` : undefined,
-        width: size ? `${size.w}px` : 'min(92vw, 22rem)',
-      }}
-    >
-      <div className="relative overflow-hidden rounded-2xl border border-slate-700 bg-slate-900/95 shadow-xl backdrop-blur supports-backdrop-filter:bg-slate-900/80">
-        {/* Header */}
-        <div
-          className="flex cursor-grab items-center gap-2 border-b border-slate-800 px-3 py-2 active:cursor-grabbing touch-none"
-          onPointerDown={onPointerDown}
-        >
-          <div className="flex items-center gap-2">
-            <span className="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-white text-slate-950">AI</span>
-            <h3 className="text-sm font-semibold">Ask AI about this note</h3>
+      <section
+        className="relative z-10 flex h-[min(88dvh,100%)] w-full flex-col border-slate-700 bg-slate-900 shadow-2xl shadow-black/50 animate-fade-in-up sm:h-full sm:w-[min(100%,24rem)] sm:border-l sm:animate-fade-in max-sm:rounded-t-3xl max-sm:border-t"
+      >
+        <div className="shrink-0 border-b border-slate-800">
+          <div className="flex justify-center pt-2 sm:hidden" aria-hidden="true">
+            <div className="h-1 w-10 rounded-full bg-slate-700" />
           </div>
-          <div className="ml-auto flex items-center gap-2">
-            <button onClick={handleRefresh} className="rounded bg-slate-800 px-2 py-1 text-xs text-slate-200 ring-1 ring-slate-700 active:scale-[.98]">
-              {refreshing ? 'Refreshing…' : 'Refresh'}
-            </button>
-            <button onClick={handleClear} className="rounded bg-slate-800 px-2 py-1 text-xs text-slate-200 ring-1 ring-slate-700 active:scale-[.98]">
-              Clear
-            </button>
-            <button onClick={(e) => { e.stopPropagation(); setMinimized(true); }} className="rounded bg-slate-800 px-2 py-1 text-xs text-slate-200 ring-1 ring-slate-700 active:scale-[.98]">
-              Minimize
-            </button>
+          <div className="flex items-center gap-3 px-4 py-3">
+            <div className="flex min-w-0 flex-1 items-center gap-2">
+              <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white text-xs font-bold text-slate-950">
+                AI
+              </span>
+              <div className="min-w-0">
+                <h3 className="truncate text-sm font-semibold text-slate-50">Ask AI</h3>
+                <p className="truncate text-xs text-slate-400">About this note</p>
+              </div>
+            </div>
+
+            <div className="relative flex items-center gap-1" ref={menuRef}>
+              <button
+                type="button"
+                aria-label="Chat options"
+                aria-expanded={menuOpen}
+                onClick={() => setMenuOpen((v) => !v)}
+                className="rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-200 active:scale-[.98]"
+              >
+                ⋯
+              </button>
+              <button
+                type="button"
+                aria-label="Close"
+                onClick={() => setOpen(false)}
+                className="rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-200 active:scale-[.98]"
+              >
+                ✕
+              </button>
+
+              {menuOpen && (
+                <div className="absolute right-0 top-full z-20 mt-2 min-w-40 overflow-hidden rounded-xl border border-slate-700 bg-slate-800 shadow-xl">
+                  <button
+                    type="button"
+                    onClick={handleRefresh}
+                    disabled={refreshing}
+                    className="block w-full px-3 py-2.5 text-left text-sm text-slate-100 hover:bg-slate-700 disabled:opacity-50"
+                  >
+                    {refreshing ? 'Refreshing…' : 'Refresh'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleClear}
+                    className="block w-full px-3 py-2.5 text-left text-sm text-rose-200 hover:bg-slate-700"
+                  >
+                    Clear chat
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Body */}
-        <div className={`${size ? '' : 'max-h-72'} overflow-y-auto p-3 space-y-2`} style={size ? { height: `${size.h}px` } : undefined}>
+        <div ref={listRef} className="note-content min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 py-4">
           {bootError && (
-            <div className="text-xs text-yellow-300 bg-yellow-900/30 border border-yellow-800 rounded p-2">
+            <div className="rounded-xl border border-amber-800/70 bg-amber-950/40 p-3 text-xs text-amber-200" role="status">
               {bootError}
             </div>
           )}
           {actionError && (
-            <div className="rounded border border-rose-800 bg-rose-950/40 p-2 text-xs text-rose-200" role="alert">
+            <div className="rounded-xl border border-rose-800/70 bg-rose-950/40 p-3 text-xs text-rose-200" role="alert">
               {actionError}
             </div>
           )}
+
           {!messages || messages.length === 0 ? (
-            <div className="text-xs text-gray-400">Ask a question about this note.</div>
+            <div className="rounded-2xl border border-dashed border-slate-700 bg-slate-800/40 px-4 py-8 text-center text-sm text-slate-400">
+              Ask a question about this note.
+            </div>
           ) : (
             messages.map((m) => (
               <div key={m.id} className={`flex ${m.role === 'assistant' ? 'justify-start' : 'justify-end'}`}>
-                <div className={`max-w-[85%] rounded-lg px-3 py-2 text-sm leading-relaxed break-words ${m.role === 'assistant' ? 'bg-slate-800 text-slate-100' : 'bg-white text-slate-950'}`}>
+                <div
+                  className={`max-w-[92%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed break-words ${
+                    m.role === 'assistant' ? 'bg-slate-800 text-slate-100' : 'bg-white text-slate-950'
+                  }`}
+                >
                   {m.role === 'assistant' ? (
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm, remarkMath]}
-                      rehypePlugins={[rehypeKatex]}
-                      components={{
-                        a: (props) => <a {...props} target="_blank" rel="noopener noreferrer" />,
-                        table: ({ children }) => (
-                          <div className="-mx-2">
-                            <table className="min-w-full break-words">{children}</table>
-                          </div>
-                        ),
-                        pre: ({ children }) => (
-                          <pre className="whitespace-pre-wrap break-words">{children}</pre>
-                        ),
-                        code: (props: any) => {
-                          const { className, children, ...rest } = props;
-                          return <code className={`${className || ''} break-words`} {...rest}>{children}</code>;
-                        },
-                      }}
-                    >
-                      {m.content}
-                    </ReactMarkdown>
+                    <div className="prose prose-invert prose-sm max-w-none prose-a:text-white prose-pre:bg-slate-950/70">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm, remarkMath]}
+                        rehypePlugins={[rehypeKatex]}
+                        components={{
+                          a: (props) => <a {...props} target="_blank" rel="noopener noreferrer" />,
+                          table: ({ children }) => (
+                            <div className="-mx-1 overflow-x-auto">
+                              <table className="min-w-full break-words">{children}</table>
+                            </div>
+                          ),
+                          pre: ({ children }) => <pre className="overflow-x-auto whitespace-pre-wrap break-words">{children}</pre>,
+                          code: (props: { className?: string; children?: ReactNode }) => {
+                            const { className, children, ...rest } = props;
+                            return (
+                              <code className={`${className || ''} break-words`} {...rest}>
+                                {children}
+                              </code>
+                            );
+                          },
+                        }}
+                      >
+                        {m.content}
+                      </ReactMarkdown>
+                    </div>
                   ) : (
                     m.content
                   )}
@@ -382,13 +271,14 @@ export default function ChatBot({ noteId, enabled }: ChatBotProps) {
               </div>
             ))
           )}
+
           {sending && (
             <div className="flex justify-start">
-              <div className="max-w-[85%] px-3 py-2 rounded-lg text-sm bg-gray-800 text-gray-100">
+              <div className="rounded-2xl bg-slate-800 px-3.5 py-2.5 text-sm text-slate-300">
                 <span className="inline-flex items-center gap-2">
                   <span className="relative inline-flex h-2 w-2">
-                    <span className="absolute inline-flex h-2 w-2 rounded-full bg-blue-400 opacity-75 animate-ping" />
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500" />
+                    <span className="absolute inline-flex h-2 w-2 animate-ping rounded-full bg-white/70 opacity-75" />
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-white" />
                   </span>
                   Thinking…
                 </span>
@@ -397,40 +287,45 @@ export default function ChatBot({ noteId, enabled }: ChatBotProps) {
           )}
         </div>
 
-        {/* Input */}
-        <form onSubmit={handleSend} className="border-t border-gray-800 p-2 flex items-center gap-2">
-          <input
-            ref={inputRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask anything about this note…"
-            className="flex-1 bg-gray-800 border border-gray-700 text-gray-100 text-sm px-3 py-2 rounded-lg outline-none focus:border-blue-500 placeholder-gray-500"
-          />
-          <button
-            type="submit"
-            disabled={sending || input.trim().length === 0}
-            className="rounded-xl bg-white px-3 py-2 text-sm text-slate-950 active:scale-[.98] disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Send
-          </button>
+        <form
+          onSubmit={handleSend}
+          className="shrink-0 border-t border-slate-800 bg-slate-900/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+        >
+          <div className="flex items-end gap-2">
+            <textarea
+              ref={inputRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={onComposerKeyDown}
+              rows={1}
+              placeholder="Ask anything about this note…"
+              className="max-h-32 min-h-11 flex-1 resize-none rounded-2xl border border-slate-700 bg-slate-800 px-3.5 py-2.5 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-white"
+            />
+            <button
+              type="submit"
+              disabled={sending || input.trim().length === 0}
+              className="min-h-11 shrink-0 rounded-2xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-950 active:scale-[.98] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Send
+            </button>
+          </div>
+          <p className="mt-2 hidden text-[11px] text-slate-500 sm:block">Enter to send · Shift+Enter for a new line</p>
         </form>
-        {/* Resize handle button (drag to resize) */}
-        <div className="absolute bottom-2 right-2">
-          <button
-            aria-label="Resize"
-            onPointerDown={onResizePointerDown}
-            className="h-7 w-7 rounded-md bg-gray-800/90 border border-gray-700 text-gray-300 active:scale-[.98] flex items-center justify-center touch-none"
-            title="Drag to resize"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 15v6h-6"/>
-              <path d="M21 21l-6-6"/>
-            </svg>
-          </button>
-        </div>
-      </div>
-    </section>
+      </section>
+    </div>
+  ) : null;
+
+  return (
+    <>
+      <button
+        type="button"
+        aria-label="Ask AI about this note"
+        onClick={() => setOpen(true)}
+        className="fixed bottom-5 right-5 z-30 flex h-14 min-w-14 items-center justify-center gap-2 rounded-2xl bg-white px-4 font-semibold text-slate-950 shadow-xl shadow-black/40 transition hover:bg-slate-200 active:scale-95 sm:bottom-8 sm:right-8"
+      >
+        <span className="text-sm">AI</span>
+      </button>
+      {panel ? createPortal(panel, document.body) : null}
+    </>
   );
 }
-
-

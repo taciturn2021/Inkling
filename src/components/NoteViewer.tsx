@@ -37,10 +37,10 @@ export default function NoteViewer({ id }: { id: string }) {
   }, [id]);
 
   if (loading) return <div className="mx-auto max-w-4xl px-4 py-8"><div className="h-5 w-1/3 animate-pulse rounded bg-slate-800" /><div className="mt-4 h-40 animate-pulse rounded-2xl bg-slate-800/70" /></div>;
-  if (error) return <div className="mx-auto max-w-4xl px-4 py-8 text-rose-300" role="alert">{error}</div>;
+  if (error) return <div className="animate-fade-in mx-auto max-w-4xl px-4 py-8 text-rose-300" role="alert">{error}</div>;
   if (!note)
     return (
-      <div className="px-4 py-6 text-slate-400">
+      <div className="animate-fade-in-up px-4 py-6 text-slate-400">
         Note not in local cache.
         <div className="mt-3">
           <button
@@ -127,7 +127,7 @@ export default function NoteViewer({ id }: { id: string }) {
   } as any;
 
   return (
-    <article className="note-content container mx-auto max-w-4xl px-4 py-6 prose prose-invert prose-sm sm:px-6 sm:py-8 sm:prose-base lg:prose-lg
+    <article className="note-content animate-fade-in-up container mx-auto max-w-4xl px-4 py-6 prose prose-invert prose-sm sm:px-6 sm:py-8 sm:prose-base lg:prose-lg
       prose-headings:scroll-mt-24 prose-headings:text-slate-100 prose-a:text-white prose-a:no-underline hover:prose-a:underline
       prose-img:rounded-2xl prose-pre:bg-slate-950/70 prose-code:bg-slate-800/80 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded">
       {note.format === 'md' ? (
