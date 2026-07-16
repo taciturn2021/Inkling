@@ -236,7 +236,7 @@ export default function DashboardPage() {
       {loading ? (
         <div className="grid grid-cols-1 gap-4 px-4 pb-24 pt-4 sm:grid-cols-2 sm:gap-6 sm:pt-5 lg:grid-cols-3" aria-label="Loading notes">
           {[1, 2, 3].map((item) => (
-            <div key={item} className="h-28 animate-pulse rounded-2xl border border-slate-700 bg-slate-800/80" />
+            <div key={item} className="h-16 animate-pulse rounded-xl border border-slate-700 bg-slate-800/70" />
           ))}
         </div>
       ) : filteredNotes.length > 0 ? (

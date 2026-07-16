@@ -107,8 +107,8 @@ export default function Header({
     <header className="sticky top-0 z-20 border-b border-slate-800 bg-slate-900/90 backdrop-blur supports-backdrop-filter:bg-slate-900/75">
       <div className="flex items-center gap-2 px-4 py-3 sm:gap-3 sm:px-6">
         <div className="min-w-0 flex-shrink-0">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-300">Inkling</p>
-          <h1 className="truncate text-lg font-bold tracking-tight">Your notes</h1>
+          <h1 className="truncate text-lg font-bold tracking-tight">Inkling</h1>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-300">Your notes</p>
         </div>
 
         {/* Desktop search */}
