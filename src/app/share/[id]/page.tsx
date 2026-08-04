@@ -1,23 +1,27 @@
 import dbConnect from '@/lib/db';
 import Note from '@/models/Note';
 import type { Metadata } from 'next';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import remarkMath from 'remark-math';
-import rehypeRaw from 'rehype-raw';
-import rehypeSlug from 'rehype-slug';
-import rehypeAutolinkHeadings from 'rehype-autolink-headings';
-import rehypeKatex from 'rehype-katex';
+import SharedNoteContent from '@/components/markdown/SharedNoteContent';
+
+type SharedNoteRecord = {
+  title?: unknown;
+  content?: unknown;
+  format?: unknown;
+  labels?: { name?: unknown; color?: unknown }[];
+};
 
 async function getSharedNote(id: string) {
   await dbConnect();
-  const note: any = await Note.findOne({ _id: id, shared: true }).populate('labels').lean();
+  const note = await Note.findOne({ _id: id, shared: true }).populate('labels').lean() as SharedNoteRecord | null;
   if (!note) return null;
   return {
-    title: note.title || 'Untitled Note',
-    content: String(note.content || ''),
-    format: (note.format as 'text' | 'md') || 'text',
-    labels: (note.labels || []).map((l: any) => ({ name: l.name, color: l.color })),
+    title: typeof note.title === 'string' && note.title ? note.title : 'Untitled Note',
+    content: typeof note.content === 'string' ? note.content : '',
+    format: note.format === 'md' ? 'md' : 'text',
+    labels: (note.labels || []).map((label) => ({
+      name: typeof label.name === 'string' ? label.name : '',
+      color: typeof label.color === 'string' ? label.color : '#64748b',
+    })),
   } as { title: string; content: string; format: 'text' | 'md'; labels: { name: string; color: string }[] };
 }
 
@@ -60,25 +64,13 @@ export default async function SharedNotePage({ params }: { params: Promise<{ id:
         </div>
       )}
 
-      <article className="note-content container mx-auto max-w-4xl px-4 py-6 prose prose-invert prose-sm sm:px-6 sm:py-8 sm:prose-base lg:prose-lg
-        prose-headings:scroll-mt-24 prose-headings:text-slate-100 prose-a:text-white prose-a:no-underline hover:prose-a:underline
-        prose-img:rounded-2xl prose-pre:bg-slate-950/70 prose-code:bg-slate-800/80 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded">
-        {note.format === 'md' ? (
-          <ReactMarkdown
-            remarkPlugins={[remarkGfm, remarkMath]}
-            rehypePlugins={[
-              rehypeRaw,
-              rehypeSlug,
-              rehypeKatex,
-              [rehypeAutolinkHeadings, { behavior: 'append', properties: { className: ['ml-1','text-gray-500','no-underline'] } }],
-            ]}
-          >
-            {note.content}
-          </ReactMarkdown>
-        ) : (
+      {note.format === 'md' ? (
+        <SharedNoteContent content={note.content} />
+      ) : (
+        <article className="container mx-auto max-w-4xl px-4 py-6 sm:px-6 sm:py-8">
           <pre className="whitespace-pre-wrap text-gray-200 leading-relaxed">{note.content}</pre>
-        )}
-      </article>
+        </article>
+      )}
     </div>
   );
 }
@@ -87,8 +79,8 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const { id } = await params;
   try {
     await dbConnect();
-    const note: any = await Note.findOne({ _id: id, shared: true }).select('title').lean();
-    const title = note?.title ? String(note.title) : 'Shared Note';
+    const note = await Note.findOne({ _id: id, shared: true }).select('title').lean() as { title?: unknown } | null;
+    const title = typeof note?.title === 'string' && note.title ? note.title : 'Shared Note';
     return {
       title,
       openGraph: { title },

@@ -208,7 +208,7 @@ export default function NoteEditor({ noteId }: { noteId?: string }) {
 
   return (
     <div className="min-h-dvh bg-slate-900 px-4 py-5 text-slate-50 sm:px-6 sm:py-8">
-      <div className="mx-auto max-w-4xl">
+      <div className="mx-auto max-w-7xl">
       {isConverting && (
         <div className="mb-4 h-1.5 w-full overflow-hidden rounded-full bg-slate-800" role="progressbar" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100}>
           <div className="h-full bg-white transition-all duration-200" style={{ width: `${progress}%` }} />

@@ -52,24 +52,20 @@ button:disabled {
   cursor: not-allowed;
 }
 
-/* Keep rich note content inside the viewport on small screens. */
-.note-content,
-.note-content * {
+/* Legacy chat markdown container — avoid universal max-width (breaks diagrams). */
+.note-content img {
+  height: auto;
   max-width: 100%;
-}
-
-.note-content pre,
-.note-content table {
-  max-width: 100%;
+  object-fit: contain;
 }
 
 .note-content pre {
   overflow-x: auto;
 }
 
-.note-content img {
-  height: auto;
-  object-fit: contain;
+.note-content table {
+  display: block;
+  overflow-x: auto;
 }
 
 @keyframes nav-progress {

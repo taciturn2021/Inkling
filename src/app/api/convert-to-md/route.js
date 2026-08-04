@@ -41,6 +41,7 @@ $$ (block math) and ensure a blank line before and after the block.
   - Do not escape backslashes inside math; keep commands like \frac, \left, \right.
 - Keep code blocks and inline code. Add language hints to fenced blocks where obvious (e.g., \`\`\`ts).
 - Use proper headings (#..######), list syntax, links, images, and tables.
+- Do not add a static "Table of Contents" section; the note viewer creates an interactive table of contents automatically.
 - Avoid raw HTML where a Markdown alternative exists.
 - Do not add frontmatter or any metadata.
 
